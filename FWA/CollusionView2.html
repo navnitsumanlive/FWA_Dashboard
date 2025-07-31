@@ -1,0 +1,1394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare Collusion Detection Dashboard</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 20px;
+            padding: 20px;
+            max-width: 1800px;
+            margin: 0 auto;
+        }
+        .header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        .card {
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .card-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .grid-3 {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+        }
+        .chart-container {
+            width: 100%;
+            height: 400px;
+        }
+        #network-graph {
+            height: 600px;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .control-group {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        select, input, button {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            background-color: white;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .community-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            border-left: 4px solid #3498db;
+        }
+        .risk-indicator {
+            display: inline-block;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 0.8em;
+            font-weight: bold;
+        }
+        .high-risk {
+            background-color: #e74c3c;
+            color: white;
+        }
+        .medium-risk {
+            background-color: #f39c12;
+            color: white;
+        }
+        .low-risk {
+            background-color: #2ecc71;
+            color: white;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 5px;
+            pointer-events: none;
+            font-size: 12px;
+            z-index: 1000;
+        }
+        .node-icon {
+            font-size: 20px;
+        }
+        .hospital-icon {
+            color: #e74c3c;
+        }
+        .doctor-icon {
+            color: #3498db;
+        }
+        .member-icon {
+            color: #2ecc71;
+        }
+        .drill-controls {
+            margin-bottom: 10px;
+        }
+        .drill-btn {
+            background-color: #9b59b6;
+            margin-right: 5px;
+        }
+        .drill-btn:hover {
+            background-color: #8e44ad;
+        }
+        .filter-section {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .filter-group {
+            margin-bottom: 10px;
+        }
+        .filter-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        .slider-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .slider-value {
+            min-width: 40px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>Healthcare Collusion Detection Dashboard</h1>
+            <p>Analyzing connections between hospitals, doctors, and member associations using Louvain community detection</p>
+        </div>
+
+        <div class="filter-section">
+            <h3>Filter Nodes</h3>
+            <div class="grid-3">
+                <div class="filter-group">
+                    <div class="filter-title">By Entity Type:</div>
+                    <select id="entity-type-filter" multiple>
+                        <option value="hospital" selected>Hospitals</option>
+                        <option value="doctor" selected>Doctors</option>
+                        <option value="member" selected>Member Associations</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <div class="filter-title">By Claim Count:</div>
+                    <div class="slider-container">
+                        <input type="range" id="claim-count-filter" min="0" max="1500" value="0" step="50">
+                        <span class="slider-value" id="claim-count-value">0+</span>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <div class="filter-title">By Billed Amount ($):</div>
+                    <div class="slider-container">
+                        <input type="range" id="amount-filter" min="0" max="5000000" value="0" step="50000">
+                        <span class="slider-value" id="amount-value">$0+</span>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <div class="filter-title">By Connection Count:</div>
+                    <div class="slider-container">
+                        <input type="range" id="connection-filter" min="0" max="20" value="0" step="1">
+                        <span class="slider-value" id="connection-value">0+</span>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <div class="filter-title">By Risk Score (%):</div>
+                    <div class="slider-container">
+                        <input type="range" id="risk-filter" min="0" max="100" value="0" step="5">
+                        <span class="slider-value" id="risk-value">0%+</span>
+                    </div>
+                </div>
+                <div class="filter-group">
+                    <button id="apply-filters">Apply Filters</button>
+                    <button id="reset-filters">Reset Filters</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Network Graph of Detected Communities</div>
+            <div class="drill-controls">
+                <button id="drill-down" class="drill-btn" disabled>Drill Down</button>
+                <button id="drill-up" class="drill-btn" disabled>Drill Up</button>
+                <button id="reset-view" class="drill-btn">Reset View</button>
+                <span id="breadcrumbs"></span>
+            </div>
+            <div id="network-graph" class="chart-container"></div>
+            <div class="community-info">
+                <h3>Selected Community Analysis</h3>
+                <p id="community-details">Click on a node or community to see details</p>
+                <div id="community-metrics" style="display: none;">
+                    <div class="grid-3">
+                        <div>
+                            <h4>Risk Assessment</h4>
+                            <p>Collusion Probability: <span id="collusion-prob" class="risk-indicator high-risk">High</span></p>
+                            <p>Community Size: <span id="community-size">5</span> entities</p>
+                            <p>Total Billed Amount: $<span id="total-billed">1,234,567</span></p>
+                        </div>
+                        <div>
+                            <h4>Anomaly Indicators</h4>
+                            <p>Claim Frequency: <span id="claim-freq">3.5x</span> expected</p>
+                            <p>Procedure Concentration: <span id="proc-concentration">82%</span> similar codes</p>
+                            <p>Referral Circularity: <span id="referral-circularity">High</span></p>
+                        </div>
+                        <div>
+                            <h4>Connection Patterns</h4>
+                            <p>Doctor-Hospital Referrals: <span id="doc-hosp-ref">25</span></p>
+                            <p>Doctor-Doctor Referrals: <span id="doc-doc-ref">12</span></p>
+                            <p>Hospital-Doctor Associations: <span id="hosp-doc-assoc">18</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid-3">
+            <div class="card">
+                <div class="card-title">Top Risky Communities</div>
+                <div id="risk-chart" class="chart-container"></div>
+            </div>
+            <div class="card">
+                <div class="card-title">Temporal Claim Patterns</div>
+                <div id="temporal-chart" class="chart-container"></div>
+            </div>
+            <div class="card">
+                <div class="card-title">Procedure Code Analysis</div>
+                <div id="procedure-chart" class="chart-container"></div>
+            </div>
+        </div>
+
+        <div class="grid-2">
+            <div class="card">
+                <div class="card-title">Referral Patterns (Doctor → Hospital)</div>
+                <div id="doc-hosp-chart" class="chart-container"></div>
+            </div>
+            <div class="card">
+                <div class="card-title">Referral Patterns (Doctor → Doctor)</div>
+                <div id="doc-doc-chart" class="chart-container"></div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Hospital-Doctor Association Analysis</div>
+            <div id="hosp-doc-chart" class="chart-container"></div>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Detailed Community Members</div>
+            <table id="community-table">
+                <thead>
+                    <tr>
+                        <th>Entity Type</th>
+                        <th>Name/ID</th>
+                        <th>Claims</th>
+                        <th>Billed Amount</th>
+                        <th>Connections</th>
+                        <th>Risk Score</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Will be populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="tooltip" id="graph-tooltip"></div>
+
+    <script>
+        // Sample data - in a real application, this would come from an API
+        const sampleData = {
+            nodes: [
+                // Hospitals
+                { id: "h1", name: "City General Hospital", type: "hospital", size: 45, community: 0, claims: 1200, amount: 4500000, risk: 0.85 },
+                { id: "h2", name: "Regional Medical Center", type: "hospital", size: 38, community: 1, claims: 950, amount: 3800000, risk: 0.72 },
+                { id: "h3", name: "Community Hospital", type: "hospital", size: 28, community: 2, claims: 700, amount: 2800000, risk: 0.45 },
+                { id: "h4", name: "University Hospital", type: "hospital", size: 32, community: 3, claims: 800, amount: 3200000, risk: 0.35 },
+                
+                // Doctors
+                { id: "d1", name: "Dr. Smith (Cardiology)", type: "doctor", size: 25, community: 0, claims: 300, amount: 1200000, risk: 0.82 },
+                { id: "d2", name: "Dr. Johnson (Ortho)", type: "doctor", size: 22, community: 0, claims: 280, amount: 1100000, risk: 0.78 },
+                { id: "d3", name: "Dr. Williams (Neuro)", type: "doctor", size: 20, community: 1, claims: 250, amount: 1000000, risk: 0.65 },
+                { id: "d4", name: "Dr. Brown (Oncology)", type: "doctor", size: 18, community: 1, claims: 220, amount: 900000, risk: 0.60 },
+                { id: "d5", name: "Dr. Davis (Family)", type: "doctor", size: 15, community: 2, claims: 180, amount: 700000, risk: 0.40 },
+                { id: "d6", name: "Dr. Miller (Pediatrics)", type: "doctor", size: 12, community: 3, claims: 150, amount: 600000, risk: 0.30 },
+                { id: "d7", name: "Dr. Wilson (Cardiology)", type: "doctor", size: 20, community: 0, claims: 240, amount: 950000, risk: 0.75 },
+                { id: "d8", name: "Dr. Moore (Ortho)", type: "doctor", size: 18, community: 0, claims: 210, amount: 850000, risk: 0.70 },
+                
+                // Member Associations
+                { id: "m1", name: "HealthPlus Members", type: "member", size: 30, community: 0, claims: 400, amount: 1500000, risk: 0.80 },
+                { id: "m2", name: "CareFirst Associates", type: "member", size: 28, community: 0, claims: 380, amount: 1400000, risk: 0.75 },
+                { id: "m3", name: "Wellness Partners", type: "member", size: 25, community: 1, claims: 350, amount: 1300000, risk: 0.68 },
+                { id: "m4", name: "Prime Health Group", type: "member", size: 20, community: 2, claims: 300, amount: 1200000, risk: 0.42 },
+                { id: "m5", name: "MediCare Alliance", type: "member", size: 18, community: 3, claims: 280, amount: 1100000, risk: 0.32 }
+            ],
+            links: [
+                // Community 0 connections (high risk)
+                { source: "h1", target: "d1", value: 25, type: "referral", subtype: "doctor-hospital", amount: 500000 },
+                { source: "h1", target: "d2", value: 22, type: "referral", subtype: "doctor-hospital", amount: 450000 },
+                { source: "h1", target: "d7", value: 20, type: "referral", subtype: "doctor-hospital", amount: 400000 },
+                { source: "d1", target: "d2", value: 15, type: "referral", subtype: "doctor-doctor", amount: 300000 },
+                { source: "d1", target: "d7", value: 12, type: "referral", subtype: "doctor-doctor", amount: 250000 },
+                { source: "d1", target: "m1", value: 30, type: "claim", amount: 600000 },
+                { source: "d2", target: "m2", value: 28, type: "claim", amount: 550000 },
+                { source: "m1", target: "h1", value: 20, type: "claim", amount: 400000 },
+                { source: "m2", target: "h1", value: 18, type: "claim", amount: 350000 },
+                { source: "d1", target: "m2", value: 15, type: "claim", amount: 300000 },
+                { source: "d7", target: "m1", value: 18, type: "claim", amount: 350000 },
+                { source: "d8", target: "m2", value: 16, type: "claim", amount: 320000 },
+                
+                // Community 1 connections (medium risk)
+                { source: "h2", target: "d3", value: 20, type: "referral", subtype: "doctor-hospital", amount: 400000 },
+                { source: "h2", target: "d4", value: 18, type: "referral", subtype: "doctor-hospital", amount: 350000 },
+                { source: "d3", target: "d4", value: 10, type: "referral", subtype: "doctor-doctor", amount: 200000 },
+                { source: "d3", target: "m3", value: 25, type: "claim", amount: 500000 },
+                { source: "d4", target: "m3", value: 22, type: "claim", amount: 450000 },
+                
+                // Community 2 connections (low risk)
+                { source: "h3", target: "d5", value: 15, type: "referral", subtype: "doctor-hospital", amount: 300000 },
+                { source: "d5", target: "m4", value: 18, type: "claim", amount: 350000 },
+                
+                // Community 3 connections (low risk)
+                { source: "h4", target: "d6", value: 12, type: "referral", subtype: "doctor-hospital", amount: 250000 },
+                { source: "d6", target: "m5", value: 15, type: "claim", amount: 300000 },
+                
+                // Some cross-community connections
+                { source: "d3", target: "m1", value: 5, type: "claim", amount: 100000 },
+                { source: "d5", target: "m2", value: 3, type: "claim", amount: 60000 }
+            ],
+            communities: [
+                { id: 0, name: "Community 1", risk: "high", members: ["h1", "d1", "d2", "d7", "d8", "m1", "m2"], 
+                  billingPattern: [1200000, 1350000, 1500000, 1450000, 1600000, 1750000, 1800000, 1850000, 1900000, 1950000, 2000000, 2100000],
+                  procedureCodes: [
+                    {code: "99214", count: 320, avgAmount: 120},
+                    {code: "99213", count: 280, avgAmount: 90},
+                    {code: "99232", count: 240, avgAmount: 80},
+                    {code: "99233", count: 180, avgAmount: 110},
+                    {code: "99285", count: 150, avgAmount: 350}
+                  ],
+                  referralPattern: {
+                    "h1": { "d1": 25, "d2": 22, "d7": 20 },
+                    "d1": { "m1": 30, "m2": 15, "d2": 15, "d7": 12 },
+                    "d2": { "m2": 28 },
+                    "d7": { "m1": 18 },
+                    "d8": { "m2": 16 },
+                    "m1": { "h1": 20 },
+                    "m2": { "h1": 18 }
+                  }
+                },
+                { id: 1, name: "Community 2", risk: "medium", members: ["h2", "d3", "d4", "m3"], 
+                  billingPattern: [900000, 950000, 1000000, 1050000, 1100000, 1150000, 1200000, 1250000, 1300000, 1350000, 1400000, 1450000],
+                  procedureCodes: [
+                    {code: "99214", count: 280, avgAmount: 120},
+                    {code: "99213", count: 240, avgAmount: 90},
+                    {code: "99232", count: 200, avgAmount: 80},
+                    {code: "99233", count: 160, avgAmount: 110},
+                    {code: "99285", count: 120, avgAmount: 350}
+                  ],
+                  referralPattern: {
+                    "h2": { "d3": 20, "d4": 18 },
+                    "d3": { "m3": 25, "d4": 10 },
+                    "d4": { "m3": 22 }
+                  }
+                },
+                { id: 2, name: "Community 3", risk: "low", members: ["h3", "d5", "m4"], 
+                  billingPattern: [600000, 650000, 700000, 750000, 800000, 850000, 900000, 950000, 1000000, 1050000, 1100000, 1150000],
+                  procedureCodes: [
+                    {code: "99214", count: 180, avgAmount: 120},
+                    {code: "99213", count: 160, avgAmount: 90},
+                    {code: "99232", count: 140, avgAmount: 80},
+                    {code: "99233", count: 120, avgAmount: 110},
+                    {code: "99285", count: 100, avgAmount: 350}
+                  ],
+                  referralPattern: {
+                    "h3": { "d5": 15 },
+                    "d5": { "m4": 18 }
+                  }
+                },
+                { id: 3, name: "Community 4", risk: "low", members: ["h4", "d6", "m5"], 
+                  billingPattern: [500000, 550000, 600000, 650000, 700000, 750000, 800000, 850000, 900000, 950000, 1000000, 1050000],
+                  procedureCodes: [
+                    {code: "99214", count: 150, avgAmount: 120},
+                    {code: "99213", count: 140, avgAmount: 90},
+                    {code: "99232", count: 120, avgAmount: 80},
+                    {code: "99233", count: 100, avgAmount: 110},
+                    {code: "99285", count: 80, avgAmount: 350}
+                  ],
+                  referralPattern: {
+                    "h4": { "d6": 12 },
+                    "d6": { "m5": 15 }
+                  }
+                }
+            ],
+            temporalData: {
+                months: ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+                communityClaims: [
+                    {name: "Community 1", data: [120, 135, 150, 145, 160, 175, 180, 185, 190, 195, 200, 210]},
+                    {name: "Community 2", data: [90, 95, 100, 105, 110, 115, 120, 125, 130, 135, 140, 145]},
+                    {name: "Community 3", data: [60, 65, 70, 75, 80, 85, 90, 95, 100, 105, 110, 115]},
+                    {name: "Community 4", data: [50, 55, 60, 65, 70, 75, 80, 85, 90, 95, 100, 105]}
+                ]
+            }
+        };
+
+        // Calculate connection counts for each node
+        sampleData.nodes.forEach(node => {
+            node.connections = sampleData.links.filter(link => 
+                link.source === node.id || link.target === node.id).length;
+        });
+
+        // Drill-down state management
+        let drillState = {
+            currentLevel: 'community',
+            currentId: null,
+            history: []
+        };
+
+        // Filter state
+        let filterState = {
+            entityTypes: ['hospital', 'doctor', 'member'],
+            minClaims: 0,
+            minAmount: 0,
+            minConnections: 0,
+            minRisk: 0
+        };
+
+        // Initialize the dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            initNetworkGraph();
+            initRiskChart();
+            initTemporalChart();
+            initProcedureChart();
+            initDocHospChart();
+            initDocDocChart();
+            initHospDocChart();
+            initCommunityTable();
+            
+            // Set up event listeners
+            document.getElementById('apply-filters').addEventListener('click', applyFilters);
+            document.getElementById('reset-filters').addEventListener('click', resetFilters);
+            document.getElementById('drill-down').addEventListener('click', drillDown);
+            document.getElementById('drill-up').addEventListener('click', drillUp);
+            document.getElementById('reset-view').addEventListener('click', resetView);
+            
+            // Filter controls
+            document.getElementById('claim-count-filter').addEventListener('input', function() {
+                document.getElementById('claim-count-value').textContent = this.value + '+';
+            });
+            document.getElementById('amount-filter').addEventListener('input', function() {
+                document.getElementById('amount-value').textContent = '$' + parseInt(this.value).toLocaleString() + '+';
+            });
+            document.getElementById('connection-filter').addEventListener('input', function() {
+                document.getElementById('connection-value').textContent = this.value + '+';
+            });
+            document.getElementById('risk-filter').addEventListener('input', function() {
+                document.getElementById('risk-value').textContent = this.value + '%+';
+            });
+        });
+
+        function applyFilters() {
+            filterState = {
+                entityTypes: Array.from(document.getElementById('entity-type-filter').selectedOptions)
+                    .map(option => option.value),
+                minClaims: parseInt(document.getElementById('claim-count-filter').value),
+                minAmount: parseInt(document.getElementById('amount-filter').value),
+                minConnections: parseInt(document.getElementById('connection-filter').value),
+                minRisk: parseInt(document.getElementById('risk-filter').value) / 100
+            };
+            
+            initNetworkGraph();
+            initCommunityTable();
+        }
+
+        function resetFilters() {
+            document.getElementById('entity-type-filter').selectedOptions = Array.from(
+                document.getElementById('entity-type-filter').options).map(option => {
+                    option.selected = true;
+                    return option;
+                });
+            document.getElementById('claim-count-filter').value = 0;
+            document.getElementById('amount-filter').value = 0;
+            document.getElementById('connection-filter').value = 0;
+            document.getElementById('risk-filter').value = 0;
+            
+            document.getElementById('claim-count-value').textContent = '0+';
+            document.getElementById('amount-value').textContent = '$0+';
+            document.getElementById('connection-value').textContent = '0+';
+            document.getElementById('risk-value').textContent = '0%+';
+            
+            filterState = {
+                entityTypes: ['hospital', 'doctor', 'member'],
+                minClaims: 0,
+                minAmount: 0,
+                minConnections: 0,
+                minRisk: 0
+            };
+            
+            initNetworkGraph();
+            initCommunityTable();
+        }
+
+        function initNetworkGraph() {
+            const width = document.getElementById('network-graph').clientWidth;
+            const height = document.getElementById('network-graph').clientHeight;
+            
+            // Clear previous SVG if exists
+            d3.select("#network-graph svg").remove();
+            
+            // Create SVG
+            const svg = d3.select("#network-graph")
+                .append("svg")
+                .attr("width", width)
+                .attr("height", height);
+            
+            // Create a group for the graph
+            const g = svg.append("g");
+            
+            // Filter nodes based on current filters
+            const filteredNodes = sampleData.nodes.filter(node => 
+                filterState.entityTypes.includes(node.type) &&
+                node.claims >= filterState.minClaims &&
+                node.amount >= filterState.minAmount &&
+                node.connections >= filterState.minConnections &&
+                node.risk >= filterState.minRisk
+            );
+            
+            // Filter links to only include connections between filtered nodes
+            const filteredLinks = sampleData.links.filter(link => 
+                filteredNodes.some(n => n.id === link.source) && 
+                filteredNodes.some(n => n.id === link.target)
+            );
+            
+            // Color scale for communities
+            const color = d3.scaleOrdinal()
+                .domain([0, 1, 2, 3])
+                .range(["#e74c3c", "#f39c12", "#2ecc71", "#3498db"]);
+            
+            // Simulation setup
+            const simulation = d3.forceSimulation(filteredNodes)
+                .force("link", d3.forceLink(filteredLinks).id(d => d.id).distance(100))
+                .force("charge", d3.forceManyBody().strength(-300))
+                .force("center", d3.forceCenter(width / 2, height / 2))
+                .force("collision", d3.forceCollide().radius(d => d.size / 2 + 5));
+            
+            // Create links
+            const link = g.append("g")
+                .attr("class", "links")
+                .selectAll("line")
+                .data(filteredLinks)
+                .enter().append("line")
+                .attr("stroke-width", d => Math.sqrt(d.value))
+                .attr("stroke", d => {
+                    if (d.type === 'referral') {
+                        return d.subtype === 'doctor-doctor' ? '#9b59b6' : '#3498db';
+                    }
+                    return '#2ecc71';
+                })
+                .attr("stroke-opacity", 0.6);
+            
+            // Create nodes with icons
+            const node = g.append("g")
+                .attr("class", "nodes")
+                .selectAll("g")
+                .data(filteredNodes)
+                .enter().append("g")
+                .call(d3.drag()
+                    .on("start", dragstarted)
+                    .on("drag", dragged)
+                    .on("end", dragended));
+            
+            // Add icons based on node type
+            node.append("text")
+                .attr("class", d => `node-icon ${
+                    d.type === 'hospital' ? 'hospital-icon fas fa-hospital' :
+                    d.type === 'doctor' ? 'doctor-icon fas fa-user-md' :
+                    'member-icon fas fa-users'
+                }`)
+                .attr("font-family", "FontAwesome")
+                .attr("text-anchor", "middle")
+                .attr("dy", ".35em")
+                .text(d => {
+                    return d.type === 'hospital' ? '\uf0f8' :
+                           d.type === 'doctor' ? '\uf0f0' :
+                           '\uf0c0';
+                })
+                .attr("font-size", d => `${d.size}px`);
+            
+            // Add labels
+            const label = g.append("g")
+                .attr("class", "labels")
+                .selectAll("text")
+                .data(filteredNodes)
+                .enter().append("text")
+                .attr("dy", d => -d.size/2 - 5)
+                .text(d => {
+                    if (d.type === 'hospital') return d.name.split(' ')[0];
+                    if (d.type === 'doctor') return d.name.split(' ')[1];
+                    return d.name.split(' ')[0];
+                })
+                .attr("font-size", "10px")
+                .attr("text-anchor", "middle");
+            
+            // Tooltip
+            const tooltip = d3.select("#graph-tooltip");
+            
+            node.on("mouseover", function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style("opacity", .9);
+                tooltip.html(`
+                    <strong>${d.name}</strong><br/>
+                    Type: ${d.type}<br/>
+                    Community: ${d.community + 1}<br/>
+                    Claims: ${d.claims}<br/>
+                    Billed: $${d.amount.toLocaleString()}<br/>
+                    Connections: ${d.connections}<br/>
+                    Risk: ${Math.round(d.risk * 100)}%
+                `)
+                    .style("left", (event.pageX + 10) + "px")
+                    .style("top", (event.pageY - 28) + "px");
+                
+                // Highlight connected nodes
+                link.attr("stroke-opacity", l => l.source === d || l.target === d ? 0.9 : 0.2)
+                    .attr("stroke-width", l => l.source === d || l.target === d ? Math.sqrt(l.value) * 1.5 : Math.sqrt(l.value));
+                
+                node.attr("opacity", n => isConnected(d, n, filteredLinks) ? 1 : 0.2);
+                label.attr("opacity", n => isConnected(d, n, filteredLinks) ? 1 : 0.2);
+            });
+            
+            node.on("mouseout", function() {
+                tooltip.transition()
+                    .duration(500)
+                    .style("opacity", 0);
+                
+                link.attr("stroke-opacity", 0.6)
+                    .attr("stroke-width", d => Math.sqrt(d.value));
+                
+                node.attr("opacity", 1);
+                label.attr("opacity", 1);
+            });
+            
+            node.on("click", function(event, d) {
+                if (drillState.currentLevel === 'community') {
+                    drillState.currentId = d.community;
+                    updateCommunityDetails(d.community);
+                } else {
+                    // If already drilled down, show connections for this node
+                    highlightConnections(d, filteredLinks);
+                }
+            });
+            
+            // Update positions on simulation tick
+            simulation.on("tick", () => {
+                link
+                    .attr("x1", d => d.source.x)
+                    .attr("y1", d => d.source.y)
+                    .attr("x2", d => d.target.x)
+                    .attr("y2", d => d.target.y);
+                
+                node
+                    .attr("transform", d => `translate(${d.x},${d.y})`);
+                
+                label
+                    .attr("x", d => d.x)
+                    .attr("y", d => d.y);
+            });
+            
+            // Helper function to check if nodes are connected
+            function isConnected(a, b, links) {
+                return links.some(link => 
+                    (link.source === a && link.target === b) || 
+                    (link.source === b && link.target === a)
+                );
+            }
+            
+            // Highlight connections for a specific node
+            function highlightConnections(node, links) {
+                // Get all connected nodes
+                const connectedNodes = new Set();
+                connectedNodes.add(node.id);
+                
+                links.forEach(link => {
+                    if (link.source === node.id) connectedNodes.add(link.target);
+                    if (link.target === node.id) connectedNodes.add(link.source);
+                });
+                
+                // Update visibility
+                node.each(d => {
+                    d.hidden = !connectedNodes.has(d.id);
+                });
+                
+                // Restart simulation with new alpha
+                simulation.alpha(0.3).restart();
+            }
+            
+            // Drag functions
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+            
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+            
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+        }
+        
+        function drillDown() {
+            if (drillState.currentLevel === 'community' && drillState.currentId !== null) {
+                drillState.history.push({
+                    level: drillState.currentLevel,
+                    id: drillState.currentId
+                });
+                
+                drillState.currentLevel = 'entity';
+                updateDrillControls();
+                
+                // Filter nodes to show only this community
+                const community = sampleData.communities.find(c => c.id === drillState.currentId);
+                if (community) {
+                    // Update the network graph to show only this community
+                    initNetworkGraph(); // Simplified - in a real app, we'd filter the existing graph
+                    
+                    // Update breadcrumbs
+                    document.getElementById('breadcrumbs').innerHTML = 
+                        `Viewing: Community ${drillState.currentId + 1} > `;
+                }
+            }
+        }
+        
+        function drillUp() {
+            if (drillState.history.length > 0) {
+                const prevState = drillState.history.pop();
+                drillState.currentLevel = prevState.level;
+                drillState.currentId = prevState.id;
+                updateDrillControls();
+                
+                // Reset to full view
+                initNetworkGraph();
+                
+                // Update breadcrumbs
+                document.getElementById('breadcrumbs').innerHTML = 
+                    drillState.history.length > 0 ? 
+                    `Viewing: Community ${drillState.currentId + 1}` : 
+                    '';
+                
+                if (drillState.currentId !== null) {
+                    updateCommunityDetails(drillState.currentId);
+                }
+            }
+        }
+        
+        function resetView() {
+            drillState = {
+                currentLevel: 'community',
+                currentId: null,
+                history: []
+            };
+            updateDrillControls();
+            initNetworkGraph();
+            document.getElementById('breadcrumbs').innerHTML = '';
+            document.getElementById('community-details').style.display = 'block';
+            document.getElementById('community-metrics').style.display = 'none';
+        }
+        
+        function updateDrillControls() {
+            const drillDownBtn = document.getElementById('drill-down');
+            const drillUpBtn = document.getElementById('drill-up');
+            
+            drillDownBtn.disabled = drillState.currentLevel !== 'community' || drillState.currentId === null;
+            drillUpBtn.disabled = drillState.history.length === 0;
+        }
+        
+        function updateCommunityDetails(communityId) {
+            const community = sampleData.communities.find(c => c.id === communityId);
+            if (!community) return;
+            
+            drillState.currentId = communityId;
+            updateDrillControls();
+            
+            document.getElementById('community-details').style.display = 'none';
+            document.getElementById('community-metrics').style.display = 'block';
+            
+            // Update metrics
+            document.getElementById('collusion-prob').textContent = community.risk;
+            document.getElementById('collusion-prob').className = `risk-indicator ${
+                community.risk === 'high' ? 'high-risk' : 
+                community.risk === 'medium' ? 'medium-risk' : 'low-risk'
+            }`;
+            
+            document.getElementById('community-size').textContent = community.members.length;
+            
+            const totalBilled = community.members.reduce((sum, memberId) => {
+                const member = sampleData.nodes.find(n => n.id === memberId);
+                return sum + (member ? member.amount : 0);
+            }, 0);
+            document.getElementById('total-billed').textContent = totalBilled.toLocaleString();
+            
+            // Calculate referral patterns
+            const docHospRef = sampleData.links.filter(l => 
+                community.members.includes(l.source) && 
+                community.members.includes(l.target) &&
+                l.subtype === 'doctor-hospital').length;
+            
+            const docDocRef = sampleData.links.filter(l => 
+                community.members.includes(l.source) && 
+                community.members.includes(l.target) &&
+                l.subtype === 'doctor-doctor').length;
+            
+            const hospDocAssoc = sampleData.links.filter(l => 
+                community.members.includes(l.source) && 
+                community.members.includes(l.target) &&
+                (l.source.startsWith('h') && l.target.startsWith('d') || 
+                 l.source.startsWith('d') && l.target.startsWith('h'))).length;
+            
+            document.getElementById('doc-hosp-ref').textContent = docHospRef;
+            document.getElementById('doc-doc-ref').textContent = docDocRef;
+            document.getElementById('hosp-doc-assoc').textContent = hospDocAssoc;
+            
+            // Update other visualizations to focus on this community
+            updateProcedureChart(communityId);
+            
+            // Update table
+            updateCommunityTable(communityId);
+            
+            // Update breadcrumbs
+            document.getElementById('breadcrumbs').innerHTML = 
+                `Viewing: Community ${communityId + 1}`;
+        }
+        
+        function initRiskChart() {
+            const ctx = document.getElementById('risk-chart').getContext('2d');
+            
+            // Prepare data
+            const labels = sampleData.communities.map(c => c.name);
+            const riskScores = sampleData.communities.map(c => {
+                const members = sampleData.nodes.filter(n => c.members.includes(n.id));
+                const avgRisk = members.reduce((sum, m) => sum + m.risk, 0) / members.length;
+                return avgRisk * 100;
+            });
+            const billedAmounts = sampleData.communities.map(c => {
+                const members = sampleData.nodes.filter(n => c.members.includes(n.id));
+                return members.reduce((sum, m) => sum + m.amount, 0) / 1000000; // in millions
+            });
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: 'Risk Score (%)',
+                            data: riskScores,
+                            backgroundColor: ['#e74c3c', '#f39c12', '#2ecc71', '#3498db'],
+                            borderColor: ['#c0392b', '#d35400', '#27ae60', '#2980b9'],
+                            borderWidth: 1,
+                            yAxisID: 'y'
+                        },
+                        {
+                            label: 'Billed Amount ($M)',
+                            data: billedAmounts,
+                            type: 'line',
+                            borderColor: '#2c3e50',
+                            borderWidth: 2,
+                            fill: false,
+                            yAxisID: 'y1'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Risk Score vs Billed Amount by Community'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.datasetIndex === 0) {
+                                        label += context.raw.toFixed(1) + '%';
+                                    } else {
+                                        label += '$' + context.raw.toFixed(2) + 'M';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Risk Score (%)'
+                            },
+                            max: 100
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Billed Amount ($M)'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function initTemporalChart() {
+            const ctx = document.getElementById('temporal-chart').getContext('2d');
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: sampleData.temporalData.months,
+                    datasets: sampleData.temporalData.communityClaims.map((community, idx) => ({
+                        label: community.name,
+                        data: community.data,
+                        borderColor: [
+                            '#e74c3c',
+                            '#f39c12',
+                            '#2ecc71',
+                            '#3498db'
+                        ][idx],
+                        backgroundColor: 'rgba(255, 255, 255, 0)',
+                        borderWidth: 2,
+                        tension: 0.3,
+                        pointRadius: 4,
+                        pointHoverRadius: 6
+                    }))
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Monthly Claim Patterns by Community'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Claims'
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
+        
+        function initProcedureChart() {
+            const chart = echarts.init(document.getElementById('procedure-chart'));
+            updateProcedureChart(0); // Default to showing community 0
+        }
+        
+        function updateProcedureChart(communityId) {
+            const chart = echarts.init(document.getElementById('procedure-chart'));
+            
+            // Prepare data - use specified community
+            const community = sampleData.communities.find(c => c.id === communityId);
+            const data = community.procedureCodes.map(pc => ({
+                name: pc.code,
+                value: pc.count,
+                avgAmount: pc.avgAmount
+            }));
+            
+            const option = {
+                title: {
+                    text: `Top Procedure Codes for ${community.name} (${community.risk} Risk)`,
+                    subtext: 'Frequency and average amount',
+                    left: 'center'
+                },
+                tooltip: {
+                    formatter: params => {
+                        return `<strong>${params.name}</strong><br/>
+                        Frequency: ${params.value}<br/>
+                        Avg Amount: $${params.data.avgAmount}`;
+                    }
+                },
+                xAxis: {
+                    type: 'category',
+                    data: data.map(item => item.name),
+                    axisLabel: {
+                        rotate: 45
+                    }
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: 'Frequency',
+                        axisLabel: {
+                            formatter: '{value}'
+                        }
+                    },
+                    {
+                        type: 'value',
+                        name: 'Avg Amount ($)',
+                        axisLabel: {
+                            formatter: '${value}'
+                        }
+                    }
+                ],
+                series: [
+                    {
+                        name: 'Frequency',
+                        type: 'bar',
+                        data: data.map(item => item.value),
+                        itemStyle: {
+                            color: '#3498db'
+                        }
+                    },
+                    {
+                        name: 'Average Amount',
+                        type: 'line',
+                        yAxisIndex: 1,
+                        data: data.map(item => item.avgAmount),
+                        itemStyle: {
+                            color: '#e74c3c'
+                        },
+                        symbolSize: 8,
+                        lineStyle: {
+                            width: 3
+                        }
+                    }
+                ]
+            };
+            
+            chart.setOption(option);
+            
+            window.addEventListener('resize', function() {
+                chart.resize();
+            });
+        }
+        
+        function initDocHospChart() {
+            const chart = echarts.init(document.getElementById('doc-hosp-chart'));
+            
+            // Prepare data - doctor to hospital referrals
+            const data = sampleData.links
+                .filter(link => link.subtype === 'doctor-hospital')
+                .map(link => {
+                    const source = sampleData.nodes.find(n => n.id === link.source);
+                    const target = sampleData.nodes.find(n => n.id === link.target);
+                    return {
+                        source: source.name,
+                        target: target.name,
+                        value: link.value,
+                        amount: link.amount
+                    };
+                });
+            
+            const option = {
+                title: {
+                    text: 'Doctor to Hospital Referral Patterns',
+                    subtext: 'Volume and dollar amounts of referrals',
+                    left: 'center'
+                },
+                tooltip: {
+                    formatter: params => {
+                        return `<strong>${params.data.source} → ${params.data.target}</strong><br/>
+                        Referrals: ${params.data.value}<br/>
+                        Total Amount: $${params.data.amount.toLocaleString()}`;
+                    }
+                },
+                xAxis: {
+                    type: 'category',
+                    data: [...new Set(data.map(item => item.source))],
+                    axisLabel: {
+                        rotate: 45
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: 'Number of Referrals'
+                },
+                series: [
+                    {
+                        name: 'Referrals',
+                        type: 'bar',
+                        data: data.map(item => ({
+                            value: item.value,
+                            source: item.source,
+                            target: item.target,
+                            amount: item.amount
+                        })),
+                        itemStyle: {
+                            color: function(params) {
+                                // Color by community
+                                const doctor = sampleData.nodes.find(n => n.name === params.data.source);
+                                return ['#e74c3c', '#f39c12', '#2ecc71', '#3498db'][doctor.community];
+                            }
+                        }
+                    }
+                ]
+            };
+            
+            chart.setOption(option);
+            
+            window.addEventListener('resize', function() {
+                chart.resize();
+            });
+        }
+        
+        function initDocDocChart() {
+            const chart = echarts.init(document.getElementById('doc-doc-chart'));
+            
+            // Prepare data - doctor to doctor referrals
+            const data = sampleData.links
+                .filter(link => link.subtype === 'doctor-doctor')
+                .map(link => {
+                    const source = sampleData.nodes.find(n => n.id === link.source);
+                    const target = sampleData.nodes.find(n => n.id === link.target);
+                    return {
+                        source: source.name,
+                        target: target.name,
+                        value: link.value,
+                        amount: link.amount
+                    };
+                });
+            
+            const option = {
+                title: {
+                    text: 'Doctor to Doctor Referral Patterns',
+                    subtext: 'Volume and dollar amounts of referrals',
+                    left: 'center'
+                },
+                tooltip: {
+                    formatter: params => {
+                        return `<strong>${params.data.source} → ${params.data.target}</strong><br/>
+                        Referrals: ${params.data.value}<br/>
+                        Total Amount: $${params.data.amount.toLocaleString()}`;
+                    }
+                },
+                xAxis: {
+                    type: 'category',
+                    data: [...new Set(data.map(item => item.source))],
+                    axisLabel: {
+                        rotate: 45
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: 'Number of Referrals'
+                },
+                series: [
+                    {
+                        name: 'Referrals',
+                        type: 'bar',
+                        data: data.map(item => ({
+                            value: item.value,
+                            source: item.source,
+                            target: item.target,
+                            amount: item.amount
+                        })),
+                        itemStyle: {
+                            color: function(params) {
+                                // Color by community
+                                const doctor = sampleData.nodes.find(n => n.name === params.data.source);
+                                return ['#e74c3c', '#f39c12', '#2ecc71', '#3498db'][doctor.community];
+                            }
+                        }
+                    }
+                ]
+            };
+            
+            chart.setOption(option);
+            
+            window.addEventListener('resize', function() {
+                chart.resize();
+            });
+        }
+        
+        function initHospDocChart() {
+            const chart = echarts.init(document.getElementById('hosp-doc-chart'));
+            
+            // Prepare data - hospital to doctor associations
+            const hospitalDoctors = {};
+            
+            sampleData.links
+                .filter(link => (link.source.startsWith('h') && link.target.startsWith('d')) || 
+                                (link.source.startsWith('d') && link.target.startsWith('h')))
+                .forEach(link => {
+                    const hospital = link.source.startsWith('h') ? link.source : link.target;
+                    const doctor = link.source.startsWith('d') ? link.source : link.target;
+                    
+                    if (!hospitalDoctors[hospital]) {
+                        hospitalDoctors[hospital] = new Set();
+                    }
+                    hospitalDoctors[hospital].add(doctor);
+                });
+            
+            const data = Object.entries(hospitalDoctors).map(([hospital, doctors]) => {
+                const hospitalNode = sampleData.nodes.find(n => n.id === hospital);
+                return {
+                    name: hospitalNode.name,
+                    value: doctors.size,
+                    doctors: Array.from(doctors).map(d => sampleData.nodes.find(n => n.id === d).name)
+                };
+            });
+            
+            const option = {
+                title: {
+                    text: 'Hospital-Doctor Association Analysis',
+                    subtext: 'Number of doctors associated with each hospital',
+                    left: 'center'
+                },
+                tooltip: {
+                    formatter: params => {
+                        const doctors = params.data.doctors.join('<br/>');
+                        return `<strong>${params.data.name}</strong><br/>
+                        Associated Doctors: ${params.data.value}<br/><br/>
+                        ${doctors}`;
+                    }
+                },
+                xAxis: {
+                    type: 'category',
+                    data: data.map(item => item.name),
+                    axisLabel: {
+                        rotate: 45
+                    }
+                },
+                yAxis: {
+                    type: 'value',
+                    name: 'Number of Doctors'
+                },
+                series: [
+                    {
+                        name: 'Doctors',
+                        type: 'bar',
+                        data: data,
+                        itemStyle: {
+                            color: function(params) {
+                                // Color by community
+                                const hospital = sampleData.nodes.find(n => n.name === params.data.name);
+                                return ['#e74c3c', '#f39c12', '#2ecc71', '#3498db'][hospital.community];
+                            }
+                        }
+                    }
+                ]
+            };
+            
+            chart.setOption(option);
+            
+            window.addEventListener('resize', function() {
+                chart.resize();
+            });
+        }
+        
+        function initCommunityTable() {
+            // Default to showing all entities
+            updateCommunityTable(null);
+        }
+        
+        function updateCommunityTable(communityId) {
+            const tbody = document.querySelector('#community-table tbody');
+            tbody.innerHTML = '';
+            
+            let entitiesToShow = communityId === null ? 
+                sampleData.nodes : 
+                sampleData.nodes.filter(node => 
+                    sampleData.communities[communityId].members.includes(node.id));
+            
+            // Apply filters
+            entitiesToShow = entitiesToShow.filter(node => 
+                filterState.entityTypes.includes(node.type) &&
+                node.claims >= filterState.minClaims &&
+                node.amount >= filterState.minAmount &&
+                node.connections >= filterState.minConnections &&
+                node.risk >= filterState.minRisk
+            );
+            
+            entitiesToShow.forEach(entity => {
+                const row = document.createElement('tr');
+                
+                // Add icon based on type
+                const iconClass = entity.type === 'hospital' ? 'fas fa-hospital hospital-icon' :
+                                 entity.type === 'doctor' ? 'fas fa-user-md doctor-icon' :
+                                 'fas fa-users member-icon';
+                
+                row.innerHTML = `
+                    <td><i class="${iconClass}"></i> ${entity.type.charAt(0).toUpperCase() + entity.type.slice(1)}</td>
+                    <td>${entity.name}</td>
+                    <td>${entity.claims.toLocaleString()}</td>
+                    <td>$${entity.amount.toLocaleString()}</td>
+                    <td>${entity.connections}</td>
+                    <td><span class="risk-indicator ${
+                        entity.risk > 0.7 ? 'high-risk' : 
+                        entity.risk > 0.4 ? 'medium-risk' : 'low-risk'
+                    }">${Math.round(entity.risk * 100)}%</span></td>
+                `;
+                
+                tbody.appendChild(row);
+            });
+        }
+    </script>
+</body>
+</html>

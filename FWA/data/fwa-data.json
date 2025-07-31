@@ -1,0 +1,83 @@
+{
+  "claims": [
+    {
+      "claim_id": "CLM20230001",
+      "member_id": "MEM1001",
+      "provider_id": "PROV2001",
+      "service_date": "2023-01-15",
+      "service_category": "Inpatient",
+      "procedure_code": "DRG001",
+      "diagnosis_code": "ICD10-A01",
+      "billed_amount": 12500,
+      "allowed_amount": 9500,
+      "paid_amount": 9200,
+      "los_days": 4,
+      "model_decision": "Approved",
+      "assessor_decision": "Approved",
+      "final_decision": "Approved",
+      "fraud_flag": false,
+      "risk_score": 0.35,
+      "kri_scores": {
+        "LOS Score": 0.4,
+        "Cost Anomaly": 0.3,
+        "Frequency": 0.2,
+        "Clinical Mismatch": 0.1
+      }
+    },
+    {
+      "claim_id": "CLM20230002",
+      "member_id": "MEM1002",
+      "provider_id": "PROV2002",
+      "service_date": "2023-01-18",
+      "service_category": "Outpatient",
+      "procedure_code": "CPT99214",
+      "diagnosis_code": "ICD10-E11",
+      "billed_amount": 350,
+      "allowed_amount": 250,
+      "paid_amount": 240,
+      "model_decision": "Denied",
+      "assessor_decision": "Approved",
+      "final_decision": "Pending",
+      "fraud_flag": true,
+      "risk_score": 0.85,
+      "kri_scores": {
+        "LOS Score": 0.1,
+        "Cost Anomaly": 0.9,
+        "Frequency": 0.8,
+        "Clinical Mismatch": 0.7
+      }
+    }
+  ],
+  "providers": [
+    {
+      "id": "PROV2001",
+      "name": "City General Hospital",
+      "type": "hospital",
+      "specialty": "General",
+      "address": "123 Main St",
+      "city": "Metropolis",
+      "state": "NY",
+      "zip": "10001",
+      "lat": 40.7128,
+      "lng": -74.0060,
+      "risk_score": 0.4,
+      "claim_count": 1250,
+      "last_audit": "2022-11-15"
+    },
+    {
+      "id": "PROV2002",
+      "name": "Downtown Clinic",
+      "type": "clinic",
+      "specialty": "Primary Care",
+      "address": "456 Oak Ave",
+      "city": "Metropolis",
+      "state": "NY",
+      "zip": "10002",
+      "lat": 40.7100,
+      "lng": -74.0080,
+      "risk_score": 0.8,
+      "claim_count": 850,
+      "last_audit": "2023-01-05"
+    }
+  ]
+}
