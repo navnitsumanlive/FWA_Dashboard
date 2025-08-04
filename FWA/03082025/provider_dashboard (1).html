@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FWA Model Intelligence Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f7f9fc;
+      margin: 0;
+      padding: 0;
+    }
+    header {
+      background: #2c3e50;
+      color: #ecf0f1;
+      padding: 20px;
+      text-align: center;
+    }
+    .container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+      padding: 20px;
+    }
+    .card h2 {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    table th, table td {
+      border: 1px solid #ccc;
+      padding: 8px;
+      text-align: left;
+    }
+    canvas {
+      width: 100% !important;
+      height: 300px !important;
+    }
+    select, input[type="range"] {
+      margin-top: 10px;
+      width: 100%;
+      padding: 6px;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <header>
+    <h1>FWA Model Intelligence Dashboard</h1>
+  </header>
+
+  <div class="container">
+
+    <div class="card">
+      <h2>Filter by Claim Type</h2>
+      <select onchange="updateBarChart(this.value)">
+        <option value="all">All</option>
+        <option value="ipd">Inpatient</option>
+        <option value="opd">Outpatient</option>
+        <option value="dental">Dental</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <h2>Outlier Claims by Rule</h2>
+      <canvas id="outlierBarChart"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>Model vs Assessor Decision</h2>
+      <canvas id="decisionPieChart"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>Agreement Rate Over Time</h2>
+      <canvas id="agreementLineChart"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>Top Flagged Specialties</h2>
+      <canvas id="specialtyBarChart"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>Claim Amount Distribution</h2>
+      <canvas id="claimAmountChart"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>Flagged Claims Trend</h2>
+      <canvas id="flaggedTrendChart"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>Simulation: Adjust Rule Sensitivity</h2>
+      <label>Sensitivity: <span id="sensitivityValue">50</span>%</label>
+      <input type="range" min="0" max="100" value="50" onchange="simulateImpact(this.value)">
+      <canvas id="simulationChart"></canvas>
+    </div>
+
+  </div>
+
+  <script>
+    let outlierChart;
+    function updateBarChart(type) {
+      const ruleData = {
+        all: [180, 150, 90, 70, 120],
+        ipd: [60, 40, 30, 20, 30],
+        opd: [90, 80, 40, 30, 60],
+        dental: [30, 30, 20, 20, 30]
+      };
+      outlierChart.data.datasets[0].data = ruleData[type];
+      outlierChart.update();
+    }
+
+    outlierChart = new Chart(document.getElementById('outlierBarChart'), {
+      type: 'bar',
+      data: {
+        labels: ['High Billing', 'Upcoding', 'Unbundling', 'Duplicate Claims', 'Excessive Frequency'],
+        datasets: [{
+          label: 'Flagged Claims',
+          data: [180, 150, 90, 70, 120],
+          backgroundColor: '#3498db'
+        }]
+      },
+      options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
+
+    new Chart(document.getElementById('decisionPieChart'), {
+      type: 'pie',
+      data: {
+        labels: ['Match - Approve', 'Match - Flag', 'Disagree - Assessor Approved', 'Disagree - Assessor Flagged'],
+        datasets: [{
+          data: [200, 180, 70, 50],
+          backgroundColor: ['#2ecc71', '#e67e22', '#e74c3c', '#9b59b6']
+        }]
+      }
+    });
+
+    new Chart(document.getElementById('agreementLineChart'), {
+      type: 'line',
+      data: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [{
+          label: 'Agreement %',
+          data: [78, 82, 79, 85, 88, 91],
+          borderColor: '#16a085',
+          fill: false,
+          tension: 0.4
+        }]
+      },
+      options: { responsive: true }
+    });
+
+    new Chart(document.getElementById('specialtyBarChart'), {
+      type: 'bar',
+      data: {
+        labels: ['Orthopedics', 'Radiology', 'Cardiology', 'General Surgery', 'Dermatology'],
+        datasets: [{
+          label: 'Flagged Claims',
+          data: [95, 80, 70, 60, 50],
+          backgroundColor: '#8e44ad'
+        }]
+      },
+      options: { responsive: true }
+    });
+
+    new Chart(document.getElementById('claimAmountChart'), {
+      type: 'bar',
+      data: {
+        labels: ['< $100', '$100-$500', '$500-$1000', '$1000-$5000', '>$5000'],
+        datasets: [
+          { label: 'Flagged', data: [20, 40, 60, 90, 30], backgroundColor: '#c0392b' },
+          { label: 'Not Flagged', data: [50, 70, 80, 40, 20], backgroundColor: '#27ae60' }
+        ]
+      },
+      options: { responsive: true }
+    });
+
+    new Chart(document.getElementById('flaggedTrendChart'), {
+      type: 'line',
+      data: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [{
+          label: 'Flagged Claims',
+          data: [120, 140, 160, 180, 170, 190],
+          borderColor: '#2980b9',
+          backgroundColor: 'rgba(52, 152, 219, 0.2)',
+          fill: true,
+          tension: 0.3
+        }]
+      },
+      options: { responsive: true }
+    });
+
+    function simulateImpact(val) {
+      document.getElementById("sensitivityValue").innerText = val;
+      const scale = val / 50;
+      simulationChart.data.datasets[0].data = [
+        180 * scale, 150 * scale, 90 * scale, 70 * scale, 120 * scale
+      ];
+      simulationChart.update();
+    }
+
+    const simulationChart = new Chart(document.getElementById('simulationChart'), {
+      type: 'bar',
+      data: {
+        labels: ['High Billing', 'Upcoding', 'Unbundling', 'Duplicate Claims', 'Excessive Frequency'],
+        datasets: [{
+          label: 'Simulated Flags',
+          data: [180, 150, 90, 70, 120],
+          backgroundColor: '#d35400'
+        }]
+      },
+      options: { responsive: true, scales: { y: { beginAtZero: true } } }
+    });
+  </script>
+</body>
+</html>

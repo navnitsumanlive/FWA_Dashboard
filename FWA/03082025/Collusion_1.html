@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare Network Collusion Dashboard</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ngraph.graph@0.0.20/ngraph.graph.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/ngraph.louvain@1.0.1/ngraph.louvain.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto 1fr 1fr;
+            gap: 15px;
+            padding: 15px;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .header {
+            grid-column: 1 / -1;
+            background-color: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .filters {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .panel {
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel-header {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .network-container {
+            flex: 1;
+            min-height: 300px;
+            position: relative;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        select, button, input {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            background-color: #f8f9fa;
+            font-size: 14px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button.active {
+            background-color: #2980b9;
+            font-weight: bold;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .stat-card {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        .tooltip {
+            position: absolute;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 4px;
+            pointer-events: none;
+            font-size: 12px;
+            max-width: 300px;
+            z-index: 10;
+        }
+        .link {
+            stroke-opacity: 0.6;
+        }
+        .node text {
+            font-size: 10px;
+            font-weight: bold;
+            pointer-events: none;
+        }
+        .node circle {
+            stroke: #fff;
+            stroke-width: 1.5px;
+        }
+        .community-info {
+            margin-top: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+        }
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            margin-right: 5px;
+            border-radius: 2px;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .filter-label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #7f8c8d;
+        }
+        .kpi-selector {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        .kpi-btn {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>Healthcare Network Collusion Dashboard</h1>
+            <p>Analyze relationships between Hospitals, Referring Doctors, and Treating Doctors</p>
+        </div>
+        
+        <div class="filters">
+            <div class="filter-group">
+                <div class="filter-label">Hospital Type</div>
+                <select id="filter-hospital-type" multiple>
+                    <option value="all" selected>All Types</option>
+                    <option value="General">General</option>
+                    <option value="Specialty">Specialty</option>
+                    <option value="University">University</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <div class="filter-label">Doctor Specialty</div>
+                <select id="filter-specialty" multiple>
+                    <option value="all" selected>All Specialties</option>
+                    <option value="Cardiology">Cardiology</option>
+                    <option value="Orthopedics">Orthopedics</option>
+                    <option value="Neurology">Neurology</option>
+                    <option value="Oncology">Oncology</option>
+                    <option value="Pediatrics">Pediatrics</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <div class="filter-label">Suspicious Activity</div>
+                <select id="filter-suspicious">
+                    <option value="all">All Entities</option>
+                    <option value="suspicious">Only Suspicious</option>
+                    <option value="non-suspicious">Only Non-Suspicious</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <div class="filter-label">Connection Strength</div>
+                <input type="range" id="connection-strength" min="1" max="100" value="50">
+                <div style="font-size: 12px; text-align: center;">Adjust link thickness sensitivity</div>
+            </div>
+            
+            <div class="filter-group">
+                <div class="filter-label">Actions</div>
+                <button id="apply-filters">Apply Filters</button>
+                <button id="reset-filters">Reset Filters</button>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">
+                <span>Hospital ↔ Referring Doctor Network</span>
+                <div class="kpi-selector">
+                    <span style="font-size:12px; margin-right:5px;">Link by:</span>
+                    <button class="kpi-btn active" data-kpi="claims">Claims</button>
+                    <button class="kpi-btn" data-kpi="amount">Billed Amount</button>
+                    <button class="kpi-btn" data-kpi="patients">Patients</button>
+                </div>
+            </div>
+            <div class="controls">
+                <button id="detect-communities-hosp">Detect Communities</button>
+                <button id="highlight-suspicious-hosp">Highlight Suspicious</button>
+            </div>
+            <div class="network-container" id="hospital-ref-network"></div>
+            <div class="community-info" id="hosp-ref-community-info"></div>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="hosp-count">0</div>
+                    <div class="stat-label">Hospitals</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="ref-doc-count">0</div>
+                    <div class="stat-label">Referring Doctors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="hosp-ref-connections">0</div>
+                    <div class="stat-label">Connections</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">
+                <span>Referring Doctor ↔ Treating Doctor Network</span>
+                <div class="kpi-selector">
+                    <span style="font-size:12px; margin-right:5px;">Link by:</span>
+                    <button class="kpi-btn active" data-kpi="claims">Claims</button>
+                    <button class="kpi-btn" data-kpi="amount">Billed Amount</button>
+                    <button class="kpi-btn" data-kpi="patients">Patients</button>
+                </div>
+            </div>
+            <div class="controls">
+                <button id="detect-communities-ref">Detect Communities</button>
+                <button id="highlight-suspicious-ref">Highlight Suspicious</button>
+            </div>
+            <div class="network-container" id="ref-treat-network"></div>
+            <div class="community-info" id="ref-treat-community-info"></div>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="ref-doc-count2">0</div>
+                    <div class="stat-label">Referring Doctors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="treat-doc-count">0</div>
+                    <div class="stat-label">Treating Doctors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="ref-treat-connections">0</div>
+                    <div class="stat-label">Connections</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip" style="opacity: 0;"></div>
+
+    <script>
+        // Enhanced sample data with more attributes for filtering
+        const hospitals = [
+            { id: "h1", name: "City General Hospital", type: "General", suspicious: false, beds: 450, region: "North" },
+            { id: "h2", name: "University Medical Center", type: "University", suspicious: false, beds: 720, region: "East" },
+            { id: "h3", name: "Community Hospital", type: "General", suspicious: true, beds: 320, region: "West" },
+            { id: "h4", name: "Regional Medical Center", type: "Specialty", suspicious: false, beds: 600, region: "South" },
+            { id: "h5", name: "Children's Specialty", type: "Specialty", suspicious: false, beds: 280, region: "East" }
+        ];
+
+        const referringDoctors = [
+            { id: "rd1", name: "Dr. Smith", type: "referring", specialty: "Cardiology", suspicious: false, years_practice: 12, region: "North" },
+            { id: "rd2", name: "Dr. Johnson", type: "referring", specialty: "Orthopedics", suspicious: false, years_practice: 8, region: "East" },
+            { id: "rd3", name: "Dr. Williams", type: "referring", specialty: "Neurology", suspicious: true, years_practice: 15, region: "West" },
+            { id: "rd4", name: "Dr. Brown", type: "referring", specialty: "Oncology", suspicious: false, years_practice: 20, region: "South" },
+            { id: "rd5", name: "Dr. Davis", type: "referring", specialty: "Cardiology", suspicious: true, years_practice: 10, region: "East" },
+            { id: "rd6", name: "Dr. Miller", type: "referring", specialty: "Pediatrics", suspicious: false, years_practice: 5, region: "North" },
+            { id: "rd7", name: "Dr. Wilson", type: "referring", specialty: "Cardiology", suspicious: false, years_practice: 18, region: "South" }
+        ];
+
+        const treatingDoctors = [
+            { id: "td1", name: "Dr. Anderson", type: "treating", specialty: "Surgery", suspicious: false, years_practice: 15, region: "North" },
+            { id: "td2", name: "Dr. Thomas", type: "treating", specialty: "Orthopedics", suspicious: false, years_practice: 12, region: "East" },
+            { id: "td3", name: "Dr. Jackson", type: "treating", specialty: "Neurology", suspicious: true, years_practice: 10, region: "West" },
+            { id: "td4", name: "Dr. White", type: "treating", specialty: "Oncology", suspicious: false, years_practice: 22, region: "South" },
+            { id: "td5", name: "Dr. Harris", type: "treating", specialty: "Cardiology", suspicious: false, years_practice: 8, region: "East" },
+            { id: "td6", name: "Dr. Martin", type: "treating", specialty: "Pediatrics", suspicious: false, years_practice: 6, region: "North" },
+            { id: "td7", name: "Dr. Garcia", type: "treating", specialty: "Radiology", suspicious: true, years_practice: 14, region: "West" },
+            { id: "td8", name: "Dr. Lee", type: "treating", specialty: "Cardiology", suspicious: false, years_practice: 17, region: "South" }
+        ];
+
+        // Hospital to Referring Doctor links with enhanced KPI data
+        const hospRefLinks = [
+            { source: "h1", target: "rd1", claims: 15, patients: 32, amount: 45000 },
+            { source: "h1", target: "rd2", claims: 8, patients: 18, amount: 28000 },
+            { source: "h1", target: "rd3", claims: 22, patients: 45, amount: 72000 },
+            { source: "h2", target: "rd1", claims: 12, patients: 25, amount: 38000 },
+            { source: "h2", target: "rd4", claims: 7, patients: 14, amount: 21000 },
+            { source: "h2", target: "rd5", claims: 18, patients: 38, amount: 59000 },
+            { source: "h3", target: "rd3", claims: 30, patients: 62, amount: 95000 },
+            { source: "h3", target: "rd5", claims: 25, patients: 51, amount: 82000 },
+            { source: "h4", target: "rd2", claims: 10, patients: 21, amount: 32000 },
+            { source: "h4", target: "rd6", claims: 5, patients: 11, amount: 16000 },
+            { source: "h5", target: "rd6", claims: 12, patients: 25, amount: 42000 },
+            { source: "h5", target: "rd7", claims: 8, patients: 16, amount: 38000 }
+        ];
+
+        // Referring Doctor to Treating Doctor links with enhanced KPI data
+        const refTreatLinks = [
+            { source: "rd1", target: "td1", claims: 10, patients: 22, amount: 33000 },
+            { source: "rd1", target: "td5", claims: 17, patients: 35, amount: 50000 },
+            { source: "rd2", target: "td2", claims: 18, patients: 39, amount: 60000 },
+            { source: "rd3", target: "td3", claims: 52, patients: 107, amount: 167000 },
+            { source: "rd3", target: "td7", claims: 15, patients: 30, amount: 45000 },
+            { source: "rd4", target: "td4", claims: 7, patients: 14, amount: 21000 },
+            { source: "rd5", target: "td1", claims: 12, patients: 25, amount: 38000 },
+            { source: "rd5", target: "td5", claims: 31, patients: 64, amount: 103000 },
+            { source: "rd6", target: "td6", claims: 5, patients: 11, amount: 16000 },
+            { source: "rd7", target: "td5", claims: 14, patients: 28, amount: 52000 },
+            { source: "rd7", target: "td8", claims: 9, patients: 19, amount: 41000 }
+        ];
+
+        // Color scale for communities
+        const communityColors = [
+            '#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd',
+            '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf',
+            '#aec7e8', '#ffbb78', '#98df8a', '#ff9896', '#c5b0d5',
+            '#c49c94', '#f7b6d2', '#c7c7c7', '#dbdb8d', '#9edae5'
+        ];
+
+        // Global variables
+        let currentHospRefKPI = 'claims';
+        let currentRefTreatKPI = 'claims';
+        let connectionStrength = 50;
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set up KPI selector buttons
+            setupKPISelectors();
+            
+            // Create network visualizations
+            createHospitalReferringNetwork();
+            createReferringTreatingNetwork();
+            
+            // Set up filter controls
+            setupFilterControls();
+            
+            // Update statistics
+            updateStatistics();
+        });
+
+        function setupKPISelectors() {
+            // Hospital-Referring KPI buttons
+            document.querySelectorAll('#hospital-ref-network .kpi-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('#hospital-ref-network .kpi-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentHospRefKPI = this.dataset.kpi;
+                    updateLinkThickness('hospital-ref-network', currentHospRefKPI);
+                });
+            });
+            
+            // Referring-Treating KPI buttons
+            document.querySelectorAll('#ref-treat-network .kpi-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('#ref-treat-network .kpi-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    currentRefTreatKPI = this.dataset.kpi;
+                    updateLinkThickness('ref-treat-network', currentRefTreatKPI);
+                });
+            });
+        }
+
+        function setupFilterControls() {
+            // Connection strength slider
+            document.getElementById('connection-strength').addEventListener('input', function() {
+                connectionStrength = parseInt(this.value);
+                updateLinkThickness('hospital-ref-network', currentHospRefKPI);
+                updateLinkThickness('ref-treat-network', currentRefTreatKPI);
+            });
+            
+            // Apply filters button
+            document.getElementById('apply-filters').addEventListener('click', applyFilters);
+            
+            // Reset filters button
+            document.getElementById('reset-filters').addEventListener('click', resetFilters);
+            
+            // Highlight suspicious buttons
+            document.getElementById('highlight-suspicious-hosp').addEventListener('click', highlightSuspiciousHospRef);
+            document.getElementById('highlight-suspicious-ref').addEventListener('click', highlightSuspiciousRefTreat);
+            
+            // Detect communities buttons
+            document.getElementById('detect-communities-hosp').addEventListener('click', detectHospRefCommunities);
+            document.getElementById('detect-communities-ref').addEventListener('click', detectRefTreatCommunities);
+        }
+
+        function createHospitalReferringNetwork() {
+            const container = document.getElementById('hospital-ref-network');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            // Combine nodes
+            const nodes = [...hospitals, ...referringDoctors].map(d => ({...d}));
+            
+            // Create links with source and target as objects
+            const links = hospRefLinks.map(d => ({
+                source: nodes.find(n => n.id === d.source),
+                target: nodes.find(n => n.id === d.target),
+                claims: d.claims,
+                patients: d.patients,
+                amount: d.amount
+            }));
+            
+            // Create SVG
+            const svg = d3.select('#hospital-ref-network')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // Create simulation
+            const simulation = d3.forceSimulation(nodes)
+                .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+                .force('charge', d3.forceManyBody().strength(-300))
+                .force('x', d3.forceX(width / 2).strength(0.05))
+                .force('y', d3.forceY(height / 2).strength(0.05))
+                .force('collision', d3.forceCollide().radius(30));
+            
+            // Create links
+            const link = svg.append('g')
+                .selectAll('line')
+                .data(links)
+                .join('line')
+                .attr('class', 'link')
+                .attr('stroke-width', d => calculateLinkWidth(d.claims));
+            
+            // Create nodes
+            const node = svg.append('g')
+                .selectAll('g')
+                .data(nodes)
+                .join('g')
+                .call(drag(simulation));
+            
+            node.append('circle')
+                .attr('r', 10)
+                .attr('fill', d => {
+                    if (d.type === 'hospital') return d.suspicious ? '#e74c3c' : '#3498db';
+                    return d.suspicious ? '#f39c12' : '#2ecc71';
+                });
+            
+            node.append('text')
+                .attr('dy', -15)
+                .attr('text-anchor', 'middle')
+                .text(d => d.name.length > 15 ? d.name.substring(0, 15) + '...' : d.name)
+                .attr('font-size', 10);
+            
+            // Tooltip
+            const tooltip = d3.select('#tooltip');
+            
+            node.on('mouseover', function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style('opacity', 0.9);
+                
+                let html = `<strong>${d.name}</strong><br>`;
+                if (d.type === 'hospital') {
+                    html += `Type: ${d.type} Hospital<br>`;
+                    html += `Beds: ${d.beds}<br>`;
+                    html += `Region: ${d.region}<br>`;
+                    html += `Suspicious: ${d.suspicious ? 'Yes' : 'No'}`;
+                    if (d.community !== undefined) html += `<br>Community: ${d.community}`;
+                } else {
+                    html += `Type: Referring Doctor<br>`;
+                    html += `Specialty: ${d.specialty}<br>`;
+                    html += `Experience: ${d.years_practice} years<br>`;
+                    html += `Region: ${d.region}<br>`;
+                    html += `Suspicious: ${d.suspicious ? 'Yes' : 'No'}`;
+                    if (d.community !== undefined) html += `<br>Community: ${d.community}`;
+                }
+                
+                tooltip.html(html)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+                
+                d3.select(this).select('circle').attr('r', 15);
+            })
+            .on('mouseout', function() {
+                tooltip.transition()
+                    .duration(500)
+                    .style('opacity', 0);
+                
+                d3.select(this).select('circle').attr('r', 10);
+            });
+            
+            link.on('mouseover', function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style('opacity', 0.9);
+                
+                const html = `
+                    <strong>Connection</strong><br>
+                    From: ${d.source.name}<br>
+                    To: ${d.target.name}<br>
+                    Claims: ${d.claims}<br>
+                    Patients: ${d.patients}<br>
+                    Amount: $${d.amount.toLocaleString()}
+                `;
+                
+                tooltip.html(html)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+                
+                d3.select(this).attr('stroke-width', calculateLinkWidth(d[currentHospRefKPI]) * 1.5);
+            })
+            .on('mouseout', function(event, d) {
+                tooltip.transition()
+                    .duration(500)
+                    .style('opacity', 0);
+                
+                d3.select(this).attr('stroke-width', calculateLinkWidth(d[currentHospRefKPI]));
+            });
+            
+            // Update positions
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+                
+                node
+                    .attr('transform', d => `translate(${d.x},${d.y})`);
+            });
+            
+            // Store for filtering
+            container._network = { nodes, links, simulation, svg, link, node };
+        }
+
+        function createReferringTreatingNetwork() {
+            const container = document.getElementById('ref-treat-network');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            // Combine nodes
+            const nodes = [...referringDoctors, ...treatingDoctors].map(d => ({...d}));
+            
+            // Create links with source and target as objects
+            const links = refTreatLinks.map(d => ({
+                source: nodes.find(n => n.id === d.source),
+                target: nodes.find(n => n.id === d.target),
+                claims: d.claims,
+                patients: d.patients,
+                amount: d.amount
+            }));
+            
+            // Create SVG
+            const svg = d3.select('#ref-treat-network')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // Create simulation
+            const simulation = d3.forceSimulation(nodes)
+                .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+                .force('charge', d3.forceManyBody().strength(-300))
+                .force('x', d3.forceX(width / 2).strength(0.05))
+                .force('y', d3.forceY(height / 2).strength(0.05))
+                .force('collision', d3.forceCollide().radius(30));
+            
+            // Create links
+            const link = svg.append('g')
+                .selectAll('line')
+                .data(links)
+                .join('line')
+                .attr('class', 'link')
+                .attr('stroke-width', d => calculateLinkWidth(d.claims));
+            
+            // Create nodes
+            const node = svg.append('g')
+                .selectAll('g')
+                .data(nodes)
+                .join('g')
+                .call(drag(simulation));
+            
+            node.append('circle')
+                .attr('r', 10)
+                .attr('fill', d => {
+                    if (d.type === 'referring') return d.suspicious ? '#f39c12' : '#2ecc71';
+                    return d.suspicious ? '#e74c3c' : '#9b59b6';
+                });
+            
+            node.append('text')
+                .attr('dy', -15)
+                .attr('text-anchor', 'middle')
+                .text(d => d.name.length > 15 ? d.name.substring(0, 15) + '...' : d.name)
+                .attr('font-size', 10);
+            
+            // Tooltip
+            const tooltip = d3.select('#tooltip');
+            
+            node.on('mouseover', function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style('opacity', 0.9);
+                
+                let html = `<strong>${d.name}</strong><br>`;
+                if (d.type === 'referring') {
+                    html += `Type: Referring Doctor<br>`;
+                    html += `Specialty: ${d.specialty}<br>`;
+                    html += `Experience: ${d.years_practice} years<br>`;
+                    html += `Region: ${d.region}<br>`;
+                    html += `Suspicious: ${d.suspicious ? 'Yes' : 'No'}`;
+                    if (d.community !== undefined) html += `<br>Community: ${d.community}`;
+                } else {
+                    html += `Type: Treating Doctor<br>`;
+                    html += `Specialty: ${d.specialty}<br>`;
+                    html += `Experience: ${d.years_practice} years<br>`;
+                    html += `Region: ${d.region}<br>`;
+                    html += `Suspicious: ${d.suspicious ? 'Yes' : 'No'}`;
+                    if (d.community !== undefined) html += `<br>Community: ${d.community}`;
+                }
+                
+                tooltip.html(html)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+                
+                d3.select(this).select('circle').attr('r', 15);
+            })
+            .on('mouseout', function() {
+                tooltip.transition()
+                    .duration(500)
+                    .style('opacity', 0);
+                
+                d3.select(this).select('circle').attr('r', 10);
+            });
+            
+            link.on('mouseover', function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style('opacity', 0.9);
+                
+                const html = `
+                    <strong>Connection</strong><br>
+                    From: ${d.source.name}<br>
+                    To: ${d.target.name}<br>
+                    Claims: ${d.claims}<br>
+                    Patients: ${d.patients}<br>
+                    Amount: $${d.amount.toLocaleString()}
+                `;
+                
+                tooltip.html(html)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+                
+                d3.select(this).attr('stroke-width', calculateLinkWidth(d[currentRefTreatKPI]) * 1.5);
+            })
+            .on('mouseout', function(event, d) {
+                tooltip.transition()
+                    .duration(500)
+                    .style('opacity', 0);
+                
+                d3.select(this).attr('stroke-width', calculateLinkWidth(d[currentRefTreatKPI]));
+            });
+            
+            // Update positions
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+                
+                node
+                    .attr('transform', d => `translate(${d.x},${d.y})`);
+            });
+            
+            // Store for filtering
+            container._network = { nodes, links, simulation, svg, link, node };
+        }
+
+        function calculateLinkWidth(value) {
+            // Adjust sensitivity based on the connection strength slider
+            const sensitivity = connectionStrength / 50;
+            return Math.sqrt(value) * sensitivity;
+        }
+
+        function updateLinkThickness(containerId, kpi) {
+            const container = document.getElementById(containerId);
+            if (!container._network) return;
+            
+            container._network.link
+                .attr('stroke-width', d => calculateLinkWidth(d[kpi]));
+        }
+
+        function applyFilters() {
+            // Get filter values
+            const hospitalTypes = Array.from(document.getElementById('filter-hospital-type').selectedOptions)
+                .map(opt => opt.value);
+            const specialties = Array.from(document.getElementById('filter-specialty').selectedOptions)
+                .map(opt => opt.value);
+            const suspiciousFilter = document.getElementById('filter-suspicious').value;
+            
+            // Apply to Hospital-Referring network
+            filterNetwork('hospital-ref-network', hospitalTypes, specialties, suspiciousFilter);
+            
+            // Apply to Referring-Treating network
+            filterNetwork('ref-treat-network', hospitalTypes, specialties, suspiciousFilter);
+        }
+
+        function filterNetwork(containerId, hospitalTypes, specialties, suspiciousFilter) {
+            const container = document.getElementById(containerId);
+            if (!container._network) return;
+            
+            const { nodes, links, simulation, node, link } = container._network;
+            
+            // Determine which nodes to show
+            nodes.forEach(n => {
+                n.hidden = false;
+                
+                // Apply hospital type filter (only affects hospital nodes)
+                if (n.type === 'hospital' && !hospitalTypes.includes('all') && !hospitalTypes.includes(n.type)) {
+                    n.hidden = true;
+                }
+                
+                // Apply specialty filter (only affects doctor nodes)
+                if ((n.type === 'referring' || n.type === 'treating') && 
+                    !specialties.includes('all') && !specialties.includes(n.specialty)) {
+                    n.hidden = true;
+                }
+                
+                // Apply suspicious filter
+                if (suspiciousFilter === 'suspicious' && !n.suspicious) {
+                    n.hidden = true;
+                } else if (suspiciousFilter === 'non-suspicious' && n.suspicious) {
+                    n.hidden = true;
+                }
+            });
+            
+            // Update visibility
+            node.style('opacity', d => d.hidden ? 0.1 : 1);
+            
+            // Update link visibility (only show if both ends are visible)
+            link.style('opacity', d => (d.source.hidden || d.target.hidden) ? 0.1 : 1);
+            
+            // Restart simulation to account for changes
+            simulation.alpha(0.3).restart();
+        }
+
+        function resetFilters() {
+            // Reset all filter controls
+            document.getElementById('filter-hospital-type').selectedIndex = 0;
+            document.getElementById('filter-specialty').selectedIndex = 0;
+            document.getElementById('filter-suspicious').selectedIndex = 0;
+            document.getElementById('connection-strength').value = 50;
+            connectionStrength = 50;
+            
+            // Reset both networks
+            resetNetwork('hospital-ref-network');
+            resetNetwork('ref-treat-network');
+            
+            // Reset KPI selectors
+            document.querySelectorAll('.kpi-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.kpi-btn[data-kpi="claims"]').forEach(btn => btn.classList.add('active'));
+            currentHospRefKPI = 'claims';
+            currentRefTreatKPI = 'claims';
+            
+            // Update link thickness
+            updateLinkThickness('hospital-ref-network', currentHospRefKPI);
+            updateLinkThickness('ref-treat-network', currentRefTreatKPI);
+        }
+
+        function resetNetwork(containerId) {
+            const container = document.getElementById(containerId);
+            if (!container._network) return;
+            
+            const { nodes, links, simulation, node, link } = container._network;
+            
+            // Reset all nodes to visible
+            nodes.forEach(n => n.hidden = false);
+            
+            // Update visibility
+            node.style('opacity', 1);
+            link.style('opacity', 1);
+            
+            // Restart simulation
+            simulation.alpha(0.3).restart();
+        }
+
+        function detectHospRefCommunities() {
+            const container = document.getElementById('hospital-ref-network');
+            const { nodes, links } = container._network;
+            
+            // Create ngraph graph
+            const graph = ngraph.graph();
+            
+            // Add nodes
+            nodes.forEach(node => {
+                graph.addNode(node.id);
+            });
+            
+            // Add links with weights based on current KPI
+            links.forEach(link => {
+                graph.addLink(link.source.id, link.target.id, link[currentHospRefKPI]);
+            });
+            
+            // Run Louvain algorithm
+            const louvain = ngraph.louvain(graph, { weight: (link) => link.data });
+            const communities = louvain();
+            
+            // Assign communities to nodes
+            nodes.forEach(node => {
+                node.community = communities.getClass(node.id);
+            });
+            
+            // Update visualization with community colors
+            container._network.node.select('circle')
+                .attr('fill', d => {
+                    const color = communityColors[d.community % communityColors.length];
+                    if (d.type === 'hospital') return d.suspicious ? '#e74c3c' : color;
+                    return d.suspicious ? '#f39c12' : color;
+                });
+            
+            // Display community information
+            displayCommunityInfo(communities, nodes, 'hosp-ref-community-info');
+        }
+
+        function detectRefTreatCommunities() {
+            const container = document.getElementById('ref-treat-network');
+            const { nodes, links } = container._network;
+            
+            // Create ngraph graph
+            const graph = ngraph.graph();
+            
+            // Add nodes
+            nodes.forEach(node => {
+                graph.addNode(node.id);
+            });
+            
+            // Add links with weights based on current KPI
+            links.forEach(link => {
+                graph.addLink(link.source.id, link.target.id, link[currentRefTreatKPI]);
+            });
+            
+            // Run Louvain algorithm
+            const louvain = ngraph.louvain(graph, { weight: (link) => link.data });
+            const communities = louvain();
+            
+            // Assign communities to nodes
+            nodes.forEach(node => {
+                node.community = communities.getClass(node.id);
+            });
+            
+            // Update visualization with community colors
+            container._network.node.select('circle')
+                .attr('fill', d => {
+                    const color = communityColors[d.community % communityColors.length];
+                    if (d.type === 'referring') return d.suspicious ? '#f39c12' : color;
+                    return d.suspicious ? '#e74c3c' : color;
+                });
+            
+            // Display community information
+            displayCommunityInfo(communities, nodes, 'ref-treat-community-info');
+        }
+
+        function displayCommunityInfo(communities, nodes, elementId) {
+            const communityGroups = {};
+            nodes.forEach(node => {
+                if (!communityGroups[node.community]) {
+                    communityGroups[node.community] = {
+                        count: 0,
+                        hospitals: 0,
+                        referring: 0,
+                        treating: 0,
+                        color: communityColors[node.community % communityColors.length]
+                    };
+                }
+                communityGroups[node.community].count++;
+                
+                if (node.type === 'hospital') communityGroups[node.community].hospitals++;
+                if (node.type === 'referring') communityGroups[node.community].referring++;
+                if (node.type === 'treating') communityGroups[node.community].treating++;
+            });
+            
+            let html = '<div><strong>Detected Communities:</strong></div>';
+            html += '<div class="legend">';
+            
+            Object.entries(communityGroups).forEach(([communityId, data]) => {
+                html += `
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: ${data.color};"></div>
+                        <div>
+                            Community ${communityId} (${data.count} nodes)
+                            ${data.hospitals > 0 ? `Hospitals: ${data.hospitals}` : ''}
+                            ${data.referring > 0 ? `Referring: ${data.referring}` : ''}
+                            ${data.treating > 0 ? `Treating: ${data.treating}` : ''}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            html += '</div>';
+            
+            document.getElementById(elementId).innerHTML = html;
+        }
+
+        function highlightSuspiciousHospRef() {
+            const container = document.getElementById('hospital-ref-network');
+            const { node } = container._network;
+            
+            node.select('circle')
+                .attr('stroke', d => d.suspicious ? '#000' : 'none')
+                .attr('stroke-width', d => d.suspicious ? 3 : 0);
+        }
+
+        function highlightSuspiciousRefTreat() {
+            const container = document.getElementById('ref-treat-network');
+            const { node } = container._network;
+            
+            node.select('circle')
+                .attr('stroke', d => d.suspicious ? '#000' : 'none')
+                .attr('stroke-width', d => d.suspicious ? 3 : 0);
+        }
+
+        function updateStatistics() {
+            document.getElementById('hosp-count').textContent = hospitals.length;
+            document.getElementById('ref-doc-count').textContent = referringDoctors.length;
+            document.getElementById('ref-doc-count2').textContent = referringDoctors.length;
+            document.getElementById('treat-doc-count').textContent = treatingDoctors.length;
+            document.getElementById('hosp-ref-connections').textContent = hospRefLinks.length;
+            document.getElementById('ref-treat-connections').textContent = refTreatLinks.length;
+        }
+
+        function drag(simulation) {
+            function dragstarted(event) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                event.subject.fx = event.subject.x;
+                event.subject.fy = event.subject.y;
+            }
+            
+            function dragged(event) {
+                event.subject.fx = event.x;
+                event.subject.fy = event.y;
+            }
+            
+            function dragended(event) {
+                if (!event.active) simulation.alphaTarget(0);
+                event.subject.fx = null;
+                event.subject.fy = null;
+            }
+            
+            return d3.drag()
+                .on('start', dragstarted)
+                .on('drag', dragged)
+                .on('end', dragended);
+        }
+    </script>
+</body>
+</html>

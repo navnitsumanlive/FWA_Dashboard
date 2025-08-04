@@ -1,0 +1,849 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare Network Collusion Dashboard</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .header {
+            grid-column: 1 / -1;
+            background-color: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .panel {
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel-header {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .network-container {
+            flex: 1;
+            min-height: 300px;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            align-items: center;
+        }
+        select, button {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            background-color: #f8f9fa;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .stat-card {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        .highlight {
+            background-color: #fffde7;
+        }
+        .tooltip {
+            position: absolute;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 4px;
+            pointer-events: none;
+            font-size: 12px;
+            max-width: 200px;
+        }
+        .link {
+            stroke-opacity: 0.6;
+        }
+        .node text {
+            font-size: 10px;
+            font-weight: bold;
+        }
+        .node circle {
+            stroke: #fff;
+            stroke-width: 1.5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>Healthcare Network Collusion Dashboard</h1>
+            <p>Visualizing relationships between Hospitals, Referring Doctors, and Treating Doctors</p>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">Hospital ↔ Referring Doctor Network</div>
+            <div class="controls">
+                <div>
+                    <label for="hospital-filter">Filter by Hospital:</label>
+                    <select id="hospital-filter">
+                        <option value="all">All Hospitals</option>
+                    </select>
+                </div>
+                <button id="highlight-suspicious-hosp">Highlight Suspicious</button>
+            </div>
+            <div class="network-container" id="hospital-ref-network"></div>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="hosp-count">0</div>
+                    <div class="stat-label">Hospitals</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="ref-doc-count">0</div>
+                    <div class="stat-label">Referring Doctors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="hosp-ref-connections">0</div>
+                    <div class="stat-label">Connections</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">Referring Doctor ↔ Treating Doctor Network</div>
+            <div class="controls">
+                <div>
+                    <label for="ref-doc-filter">Filter by Referring Doctor:</label>
+                    <select id="ref-doc-filter">
+                        <option value="all">All Referring Doctors</option>
+                    </select>
+                </div>
+                <button id="highlight-suspicious-ref">Highlight Suspicious</button>
+            </div>
+            <div class="network-container" id="ref-treat-network"></div>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="ref-doc-count2">0</div>
+                    <div class="stat-label">Referring Doctors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="treat-doc-count">0</div>
+                    <div class="stat-label">Treating Doctors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="ref-treat-connections">0</div>
+                    <div class="stat-label">Connections</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">Hospital-Referring Doctor Statistics</div>
+            <div class="controls">
+                <label for="hosp-ref-metric">Metric:</label>
+                <select id="hosp-ref-metric">
+                    <option value="connection_count">Connection Count</option>
+                    <option value="patient_count">Patient Count</option>
+                    <option value="referral_amount">Referral Amount</option>
+                </select>
+            </div>
+            <div class="network-container">
+                <canvas id="hosp-ref-chart"></canvas>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-header">Referring-Treating Doctor Statistics</div>
+            <div class="controls">
+                <label for="ref-treat-metric">Metric:</label>
+                <select id="ref-treat-metric">
+                    <option value="connection_count">Connection Count</option>
+                    <option value="patient_count">Patient Count</option>
+                    <option value="treatment_amount">Treatment Amount</option>
+                </select>
+            </div>
+            <div class="network-container">
+                <canvas id="ref-treat-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip" style="opacity: 0;"></div>
+
+    <script>
+        // Sample data - in a real app, this would come from an API
+        const hospitals = [
+            { id: "h1", name: "City General Hospital", type: "hospital", suspicious: false },
+            { id: "h2", name: "University Medical Center", type: "hospital", suspicious: false },
+            { id: "h3", name: "Community Hospital", type: "hospital", suspicious: true },
+            { id: "h4", name: "Regional Medical Center", type: "hospital", suspicious: false }
+        ];
+
+        const referringDoctors = [
+            { id: "rd1", name: "Dr. Smith", type: "referring", specialty: "Cardiology", suspicious: false },
+            { id: "rd2", name: "Dr. Johnson", type: "referring", specialty: "Orthopedics", suspicious: false },
+            { id: "rd3", name: "Dr. Williams", type: "referring", specialty: "Neurology", suspicious: true },
+            { id: "rd4", name: "Dr. Brown", type: "referring", specialty: "Oncology", suspicious: false },
+            { id: "rd5", name: "Dr. Davis", type: "referring", specialty: "Cardiology", suspicious: true },
+            { id: "rd6", name: "Dr. Miller", type: "referring", specialty: "Pediatrics", suspicious: false }
+        ];
+
+        const treatingDoctors = [
+            { id: "td1", name: "Dr. Wilson", type: "treating", specialty: "Surgery", suspicious: false },
+            { id: "td2", name: "Dr. Moore", type: "treating", specialty: "Orthopedics", suspicious: false },
+            { id: "td3", name: "Dr. Taylor", type: "treating", specialty: "Neurology", suspicious: true },
+            { id: "td4", name: "Dr. Anderson", type: "treating", specialty: "Oncology", suspicious: false },
+            { id: "td5", name: "Dr. Thomas", type: "treating", specialty: "Cardiology", suspicious: false },
+            { id: "td6", name: "Dr. Jackson", type: "treating", specialty: "Pediatrics", suspicious: false },
+            { id: "td7", name: "Dr. White", type: "treating", specialty: "Radiology", suspicious: true }
+        ];
+
+        // Hospital to Referring Doctor links
+        const hospRefLinks = [
+            { source: "h1", target: "rd1", value: 15, patients: 32, amount: 45000 },
+            { source: "h1", target: "rd2", value: 8, patients: 18, amount: 28000 },
+            { source: "h1", target: "rd3", value: 22, patients: 45, amount: 72000 },
+            { source: "h2", target: "rd1", value: 12, patients: 25, amount: 38000 },
+            { source: "h2", target: "rd4", value: 7, patients: 14, amount: 21000 },
+            { source: "h2", target: "rd5", value: 18, patients: 38, amount: 59000 },
+            { source: "h3", target: "rd3", value: 30, patients: 62, amount: 95000 },
+            { source: "h3", target: "rd5", value: 25, patients: 51, amount: 82000 },
+            { source: "h4", target: "rd2", value: 10, patients: 21, amount: 32000 },
+            { source: "h4", target: "rd6", value: 5, patients: 11, amount: 16000 }
+        ];
+
+        // Referring Doctor to Treating Doctor links
+        const refTreatLinks = [
+            { source: "rd1", target: "td1", value: 10, patients: 22, amount: 33000 },
+            { source: "rd1", target: "td5", value: 17, patients: 35, amount: 50000 },
+            { source: "rd2", target: "td2", value: 18, patients: 39, amount: 60000 },
+            { source: "rd3", target: "td3", value: 52, patients: 107, amount: 167000 },
+            { source: "rd3", target: "td7", value: 15, patients: 30, amount: 45000 },
+            { source: "rd4", target: "td4", value: 7, patients: 14, amount: 21000 },
+            { source: "rd5", target: "td1", value: 12, patients: 25, amount: 38000 },
+            { source: "rd5", target: "td5", value: 31, patients: 64, amount: 103000 },
+            { source: "rd6", target: "td6", value: 5, patients: 11, amount: 16000 }
+        ];
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Populate filter dropdowns
+            populateHospitalFilter();
+            populateReferringDoctorFilter();
+            
+            // Create network visualizations
+            createHospitalReferringNetwork();
+            createReferringTreatingNetwork();
+            
+            // Create charts
+            createHospRefChart();
+            createRefTreatChart();
+            
+            // Set up event listeners
+            document.getElementById('highlight-suspicious-hosp').addEventListener('click', highlightSuspiciousHospRef);
+            document.getElementById('highlight-suspicious-ref').addEventListener('click', highlightSuspiciousRefTreat);
+            
+            document.getElementById('hospital-filter').addEventListener('change', filterHospitalRefNetwork);
+            document.getElementById('ref-doc-filter').addEventListener('change', filterRefTreatNetwork);
+            
+            document.getElementById('hosp-ref-metric').addEventListener('change', updateHospRefChart);
+            document.getElementById('ref-treat-metric').addEventListener('change', updateRefTreatChart);
+            
+            // Update statistics
+            updateStatistics();
+        });
+
+        function populateHospitalFilter() {
+            const select = document.getElementById('hospital-filter');
+            hospitals.forEach(hospital => {
+                const option = document.createElement('option');
+                option.value = hospital.id;
+                option.textContent = hospital.name;
+                select.appendChild(option);
+            });
+        }
+
+        function populateReferringDoctorFilter() {
+            const select = document.getElementById('ref-doc-filter');
+            referringDoctors.forEach(doctor => {
+                const option = document.createElement('option');
+                option.value = doctor.id;
+                option.textContent = doctor.name;
+                select.appendChild(option);
+            });
+        }
+
+        function createHospitalReferringNetwork() {
+            const container = document.getElementById('hospital-ref-network');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            // Combine nodes
+            const nodes = [...hospitals, ...referringDoctors].map(d => ({...d}));
+            
+            // Create links with source and target as objects
+            const links = hospRefLinks.map(d => ({
+                source: nodes.find(n => n.id === d.source),
+                target: nodes.find(n => n.id === d.target),
+                value: d.value,
+                patients: d.patients,
+                amount: d.amount
+            }));
+            
+            // Create SVG
+            const svg = d3.select('#hospital-ref-network')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // Create simulation
+            const simulation = d3.forceSimulation(nodes)
+                .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+                .force('charge', d3.forceManyBody().strength(-300))
+                .force('x', d3.forceX(width / 2).strength(0.05))
+                .force('y', d3.forceY(height / 2).strength(0.05))
+                .force('collision', d3.forceCollide().radius(30));
+            
+            // Create links
+            const link = svg.append('g')
+                .selectAll('line')
+                .data(links)
+                .join('line')
+                .attr('class', 'link')
+                .attr('stroke-width', d => Math.sqrt(d.value));
+            
+            // Create nodes
+            const node = svg.append('g')
+                .selectAll('g')
+                .data(nodes)
+                .join('g')
+                .call(drag(simulation));
+            
+            node.append('circle')
+                .attr('r', 10)
+                .attr('fill', d => {
+                    if (d.type === 'hospital') return d.suspicious ? '#e74c3c' : '#3498db';
+                    return d.suspicious ? '#f39c12' : '#2ecc71';
+                });
+            
+            node.append('text')
+                .attr('dy', -15)
+                .attr('text-anchor', 'middle')
+                .text(d => d.name.length > 15 ? d.name.substring(0, 15) + '...' : d.name)
+                .attr('font-size', 10);
+            
+            // Tooltip
+            const tooltip = d3.select('#tooltip');
+            
+            node.on('mouseover', function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style('opacity', 0.9);
+                
+                let html = `<strong>${d.name}</strong><br>`;
+                if (d.type === 'hospital') {
+                    html += `Type: Hospital<br>`;
+                    html += `Suspicious: ${d.suspicious ? 'Yes' : 'No'}`;
+                } else {
+                    html += `Type: Referring Doctor<br>`;
+                    html += `Specialty: ${d.specialty}<br>`;
+                    html += `Suspicious: ${d.suspicious ? 'Yes' : 'No'}`;
+                }
+                
+                tooltip.html(html)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+                
+                d3.select(this).select('circle').attr('r', 15);
+            })
+            .on('mouseout', function() {
+                tooltip.transition()
+                    .duration(500)
+                    .style('opacity', 0);
+                
+                d3.select(this).select('circle').attr('r', 10);
+            });
+            
+            link.on('mouseover', function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style('opacity', 0.9);
+                
+                const html = `
+                    <strong>Connection</strong><br>
+                    From: ${d.source.name}<br>
+                    To: ${d.target.name}<br>
+                    Referrals: ${d.value}<br>
+                    Patients: ${d.patients}<br>
+                    Amount: $${d.amount.toLocaleString()}
+                `;
+                
+                tooltip.html(html)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+                
+                d3.select(this).attr('stroke-width', Math.sqrt(d.value) * 2);
+            })
+            .on('mouseout', function(event, d) {
+                tooltip.transition()
+                    .duration(500)
+                    .style('opacity', 0);
+                
+                d3.select(this).attr('stroke-width', Math.sqrt(d.value));
+            });
+            
+            // Update positions
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+                
+                node
+                    .attr('transform', d => `translate(${d.x},${d.y})`);
+            });
+            
+            // Store for filtering
+            container._network = { nodes, links, simulation, svg, link, node };
+        }
+
+        function createReferringTreatingNetwork() {
+            const container = document.getElementById('ref-treat-network');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            // Combine nodes
+            const nodes = [...referringDoctors, ...treatingDoctors].map(d => ({...d}));
+            
+            // Create links with source and target as objects
+            const links = refTreatLinks.map(d => ({
+                source: nodes.find(n => n.id === d.source),
+                target: nodes.find(n => n.id === d.target),
+                value: d.value,
+                patients: d.patients,
+                amount: d.amount
+            }));
+            
+            // Create SVG
+            const svg = d3.select('#ref-treat-network')
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // Create simulation
+            const simulation = d3.forceSimulation(nodes)
+                .force('link', d3.forceLink(links).id(d => d.id).distance(100))
+                .force('charge', d3.forceManyBody().strength(-300))
+                .force('x', d3.forceX(width / 2).strength(0.05))
+                .force('y', d3.forceY(height / 2).strength(0.05))
+                .force('collision', d3.forceCollide().radius(30));
+            
+            // Create links
+            const link = svg.append('g')
+                .selectAll('line')
+                .data(links)
+                .join('line')
+                .attr('class', 'link')
+                .attr('stroke-width', d => Math.sqrt(d.value));
+            
+            // Create nodes
+            const node = svg.append('g')
+                .selectAll('g')
+                .data(nodes)
+                .join('g')
+                .call(drag(simulation));
+            
+            node.append('circle')
+                .attr('r', 10)
+                .attr('fill', d => {
+                    if (d.type === 'referring') return d.suspicious ? '#f39c12' : '#2ecc71';
+                    return d.suspicious ? '#e74c3c' : '#9b59b6';
+                });
+            
+            node.append('text')
+                .attr('dy', -15)
+                .attr('text-anchor', 'middle')
+                .text(d => d.name.length > 15 ? d.name.substring(0, 15) + '...' : d.name)
+                .attr('font-size', 10);
+            
+            // Tooltip
+            const tooltip = d3.select('#tooltip');
+            
+            node.on('mouseover', function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style('opacity', 0.9);
+                
+                let html = `<strong>${d.name}</strong><br>`;
+                if (d.type === 'referring') {
+                    html += `Type: Referring Doctor<br>`;
+                    html += `Specialty: ${d.specialty}<br>`;
+                    html += `Suspicious: ${d.suspicious ? 'Yes' : 'No'}`;
+                } else {
+                    html += `Type: Treating Doctor<br>`;
+                    html += `Specialty: ${d.specialty}<br>`;
+                    html += `Suspicious: ${d.suspicious ? 'Yes' : 'No'}`;
+                }
+                
+                tooltip.html(html)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+                
+                d3.select(this).select('circle').attr('r', 15);
+            })
+            .on('mouseout', function() {
+                tooltip.transition()
+                    .duration(500)
+                    .style('opacity', 0);
+                
+                d3.select(this).select('circle').attr('r', 10);
+            });
+            
+            link.on('mouseover', function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style('opacity', 0.9);
+                
+                const html = `
+                    <strong>Connection</strong><br>
+                    From: ${d.source.name}<br>
+                    To: ${d.target.name}<br>
+                    Referrals: ${d.value}<br>
+                    Patients: ${d.patients}<br>
+                    Amount: $${d.amount.toLocaleString()}
+                `;
+                
+                tooltip.html(html)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+                
+                d3.select(this).attr('stroke-width', Math.sqrt(d.value) * 2);
+            })
+            .on('mouseout', function(event, d) {
+                tooltip.transition()
+                    .duration(500)
+                    .style('opacity', 0);
+                
+                d3.select(this).attr('stroke-width', Math.sqrt(d.value));
+            });
+            
+            // Update positions
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+                
+                node
+                    .attr('transform', d => `translate(${d.x},${d.y})`);
+            });
+            
+            // Store for filtering
+            container._network = { nodes, links, simulation, svg, link, node };
+        }
+
+        function createHospRefChart() {
+            const ctx = document.getElementById('hosp-ref-chart').getContext('2d');
+            
+            // Group data by hospital
+            const hospitalData = {};
+            hospitals.forEach(h => {
+                hospitalData[h.id] = {
+                    name: h.name,
+                    connection_count: 0,
+                    patient_count: 0,
+                    referral_amount: 0,
+                    suspicious: h.suspicious
+                };
+            });
+            
+            hospRefLinks.forEach(link => {
+                const hospitalId = link.source;
+                hospitalData[hospitalId].connection_count += 1;
+                hospitalData[hospitalId].patient_count += link.patients;
+                hospitalData[hospitalId].referral_amount += link.amount;
+            });
+            
+            const data = Object.values(hospitalData);
+            
+            const chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.name),
+                    datasets: [{
+                        label: 'Connection Count',
+                        data: data.map(d => d.connection_count),
+                        backgroundColor: data.map(d => d.suspicious ? 'rgba(231, 76, 60, 0.7)' : 'rgba(52, 152, 219, 0.7)'),
+                        borderColor: data.map(d => d.suspicious ? 'rgba(231, 76, 60, 1)' : 'rgba(52, 152, 219, 1)'),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const dataItem = data[context.dataIndex];
+                                    return `Patients: ${dataItem.patient_count}\nAmount: $${dataItem.referral_amount.toLocaleString()}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Store for updates
+            ctx._chart = chart;
+            ctx._data = data;
+        }
+
+        function createRefTreatChart() {
+            const ctx = document.getElementById('ref-treat-chart').getContext('2d');
+            
+            // Group data by referring doctor
+            const refDocData = {};
+            referringDoctors.forEach(d => {
+                refDocData[d.id] = {
+                    name: d.name,
+                    connection_count: 0,
+                    patient_count: 0,
+                    treatment_amount: 0,
+                    suspicious: d.suspicious
+                };
+            });
+            
+            refTreatLinks.forEach(link => {
+                const refId = link.source;
+                refDocData[refId].connection_count += 1;
+                refDocData[refId].patient_count += link.patients;
+                refDocData[refId].treatment_amount += link.amount;
+            });
+            
+            const data = Object.values(refDocData);
+            
+            const chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.map(d => d.name),
+                    datasets: [{
+                        label: 'Connection Count',
+                        data: data.map(d => d.connection_count),
+                        backgroundColor: data.map(d => d.suspicious ? 'rgba(243, 156, 18, 0.7)' : 'rgba(46, 204, 113, 0.7)'),
+                        borderColor: data.map(d => d.suspicious ? 'rgba(243, 156, 18, 1)' : 'rgba(46, 204, 113, 1)'),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const dataItem = data[context.dataIndex];
+                                    return `Patients: ${dataItem.patient_count}\nAmount: $${dataItem.treatment_amount.toLocaleString()}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Store for updates
+            ctx._chart = chart;
+            ctx._data = data;
+        }
+
+        function updateHospRefChart() {
+            const ctx = document.getElementById('hosp-ref-chart').getContext('2d');
+            const chart = ctx._chart;
+            const data = ctx._data;
+            const metric = document.getElementById('hosp-ref-metric').value;
+            
+            chart.data.datasets[0].label = metric.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            chart.data.datasets[0].data = data.map(d => d[metric]);
+            chart.update();
+        }
+
+        function updateRefTreatChart() {
+            const ctx = document.getElementById('ref-treat-chart').getContext('2d');
+            const chart = ctx._chart;
+            const data = ctx._data;
+            const metric = document.getElementById('ref-treat-metric').value;
+            
+            chart.data.datasets[0].label = metric.split('_').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
+            chart.data.datasets[0].data = data.map(d => d[metric]);
+            chart.update();
+        }
+
+        function highlightSuspiciousHospRef() {
+            const container = document.getElementById('hospital-ref-network');
+            const { node } = container._network;
+            
+            node.select('circle')
+                .attr('stroke', d => d.suspicious ? '#000' : 'none')
+                .attr('stroke-width', d => d.suspicious ? 3 : 0);
+        }
+
+        function highlightSuspiciousRefTreat() {
+            const container = document.getElementById('ref-treat-network');
+            const { node } = container._network;
+            
+            node.select('circle')
+                .attr('stroke', d => d.suspicious ? '#000' : 'none')
+                .attr('stroke-width', d => d.suspicious ? 3 : 0);
+        }
+
+        function filterHospitalRefNetwork() {
+            const hospitalId = document.getElementById('hospital-filter').value;
+            const container = document.getElementById('hospital-ref-network');
+            const { nodes, links, simulation, node, link } = container._network;
+            
+            if (hospitalId === 'all') {
+                node.style('opacity', 1);
+                link.style('opacity', 1);
+            } else {
+                // Find all connected nodes
+                const connectedNodes = new Set();
+                connectedNodes.add(hospitalId);
+                
+                // Add all referring doctors connected to this hospital
+                hospRefLinks.forEach(l => {
+                    if (l.source === hospitalId) {
+                        connectedNodes.add(l.target);
+                    }
+                });
+                
+                // Update visibility
+                node.style('opacity', d => connectedNodes.has(d.id) ? 1 : 0.1);
+                link.style('opacity', d => connectedNodes.has(d.source.id) && connectedNodes.has(d.target.id) ? 1 : 0.1);
+            }
+            
+            // Restart simulation to account for changes
+            simulation.alpha(0.3).restart();
+        }
+
+        function filterRefTreatNetwork() {
+            const refDocId = document.getElementById('ref-doc-filter').value;
+            const container = document.getElementById('ref-treat-network');
+            const { nodes, links, simulation, node, link } = container._network;
+            
+            if (refDocId === 'all') {
+                node.style('opacity', 1);
+                link.style('opacity', 1);
+            } else {
+                // Find all connected nodes
+                const connectedNodes = new Set();
+                connectedNodes.add(refDocId);
+                
+                // Add all treating doctors connected to this referring doctor
+                refTreatLinks.forEach(l => {
+                    if (l.source === refDocId) {
+                        connectedNodes.add(l.target);
+                    }
+                });
+                
+                // Update visibility
+                node.style('opacity', d => connectedNodes.has(d.id) ? 1 : 0.1);
+                link.style('opacity', d => connectedNodes.has(d.source.id) && connectedNodes.has(d.target.id) ? 1 : 0.1);
+            }
+            
+            // Restart simulation to account for changes
+            simulation.alpha(0.3).restart();
+        }
+
+        function updateStatistics() {
+            document.getElementById('hosp-count').textContent = hospitals.length;
+            document.getElementById('ref-doc-count').textContent = referringDoctors.length;
+            document.getElementById('ref-doc-count2').textContent = referringDoctors.length;
+            document.getElementById('treat-doc-count').textContent = treatingDoctors.length;
+            document.getElementById('hosp-ref-connections').textContent = hospRefLinks.length;
+            document.getElementById('ref-treat-connections').textContent = refTreatLinks.length;
+        }
+
+        function drag(simulation) {
+            function dragstarted(event) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                event.subject.fx = event.subject.x;
+                event.subject.fy = event.subject.y;
+            }
+            
+            function dragged(event) {
+                event.subject.fx = event.x;
+                event.subject.fy = event.y;
+            }
+            
+            function dragended(event) {
+                if (!event.active) simulation.alphaTarget(0);
+                event.subject.fx = null;
+                event.subject.fy = null;
+            }
+            
+            return d3.drag()
+                .on('start', dragstarted)
+                .on('drag', dragged)
+                .on('end', dragended);
+        }
+    </script>
+</body>
+</html>

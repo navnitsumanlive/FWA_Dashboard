@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Healthcare FWA Collusion Detection Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/graphology@0.25.0/dist/graphology.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/graphology-layout@0.7.1/dist/graphology-layout.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/graphology-communities-louvain@0.8.1/browser/graphology-communities-louvain.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/html2pdf.js@0.10.1/dist/html2pdf.bundle.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f5f5f5;
+    }
+    header {
+      background-color: #1f3a93;
+      color: white;
+      padding: 20px;
+      text-align: center;
+    }
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+      padding: 20px;
+    }
+    canvas, svg {
+      width: 100% !important;
+      height: 400px !important;
+    }
+    .controls {
+      padding: 10px 20px;
+      background-color: white;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+    .filter-group {
+      margin: 5px;
+    }
+    .legend {
+      padding-left: 20px;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Healthcare FWA Collusion Detection Dashboard</h1>
+  </header>
+
+  <div class="controls">
+    <div class="filter-group">
+      <label for="nodeId">Node ID:</label>
+      <input type="text" id="nodeId" />
+    </div>
+    <div class="filter-group">
+      <label for="minClaim">Min Claim Amount:</label>
+      <input type="number" id="minClaim" value="0" />
+    </div>
+    <div class="filter-group">
+      <label for="maxClaim">Max Claim Amount:</label>
+      <input type="number" id="maxClaim" value="100000" />
+    </div>
+    <div class="filter-group">
+      <label for="billedAmount">Billed Amount Threshold:</label>
+      <input type="number" id="billedAmount" value="0" />
+    </div>
+    <div class="filter-group">
+      <label for="claimDate">Claim Date:</label>
+      <input type="date" id="claimDate" />
+    </div>
+    <div class="filter-group">
+      <label for="topN">Top N Suspicious Nodes:</label>
+      <input type="number" id="topN" value="10" />
+    </div>
+    <button onclick="applyFilters()">Apply Filters</button>
+    <button onclick="resetGraph()">Reset View</button>
+    <button onclick="exportGraphPNG()">Export PNG</button>
+    <button onclick="exportGraphCSV()">Export CSV</button>
+    <button onclick="exportToPDF()">Export PDF Snapshot</button>
+  </div>
+
+  <div class="dashboard" id="dashboard">
+    <div>
+      <canvas id="degreeChart"></canvas>
+    </div>
+    <div>
+      <canvas id="communityChart"></canvas>
+    </div>
+    <div style="grid-column: span 2">
+      <svg id="networkGraph"></svg>
+      <div class="legend">🧑‍⚕️ Doctor | 🏥 Hospital | Line Thickness = Connection Strength</div>
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      renderCharts();
+      renderNetworkGraph();
+    });
+
+    function renderCharts() {
+      const ctx1 = document.getElementById('degreeChart').getContext('2d');
+      new Chart(ctx1, {
+        type: 'bar',
+        data: {
+          labels: ['0-2', '3-5', '6-10', '11+'],
+          datasets: [{
+            label: 'Node Degree Distribution',
+            data: [120, 180, 100, 60],
+            backgroundColor: '#2980b9'
+          }]
+        },
+        options: {
+          scales: {
+            x: { title: { display: true, text: 'Degree Range' } },
+            y: { title: { display: true, text: 'Node Count' } }
+          }
+        }
+      });
+
+      const ctx2 = document.getElementById('communityChart').getContext('2d');
+      new Chart(ctx2, {
+        type: 'pie',
+        data: {
+          labels: ['Community A', 'Community B', 'Community C', 'Community D'],
+          datasets: [{
+            label: 'Community Size',
+            data: [140, 260, 180, 220],
+            backgroundColor: ['#e74c3c', '#2ecc71', '#f1c40f', '#9b59b6']
+          }]
+        },
+        options: {
+          responsive: true
+        }
+      });
+    }
+
+    function renderNetworkGraph() {
+      const svg = document.getElementById('networkGraph');
+      svg.innerHTML = '';
+      const width = svg.clientWidth;
+      const height = svg.clientHeight;
+      const ns = 'http://www.w3.org/2000/svg';
+
+      const nodeCount = 100;
+      const nodes = [];
+      const edges = [];
+
+      for (let i = 0; i < nodeCount; i++) {
+        nodes.push({
+          id: i,
+          type: i % 2 === 0 ? 'hospital' : 'doctor',
+          x: Math.random() * width,
+          y: Math.random() * height,
+          claimAmount: Math.floor(Math.random() * 10000),
+          billedAmount: Math.floor(Math.random() * 15000),
+          connections: []
+        });
+      }
+
+      for (let i = 0; i < nodeCount; i++) {
+        for (let j = i + 1; j < nodeCount; j++) {
+          if (Math.random() < 0.07) {
+            const edge = {
+              source: i,
+              target: j,
+              weight: Math.floor(Math.random() * 15) + 1
+            };
+            edges.push(edge);
+            nodes[i].connections.push(j);
+            nodes[j].connections.push(i);
+          }
+        }
+      }
+
+      for (const edge of edges) {
+        const src = nodes[edge.source];
+        const tgt = nodes[edge.target];
+        const line = document.createElementNS(ns, 'line');
+        line.setAttribute('x1', src.x);
+        line.setAttribute('y1', src.y);
+        line.setAttribute('x2', tgt.x);
+        line.setAttribute('y2', tgt.y);
+        line.setAttribute('stroke', '#777');
+        line.setAttribute('stroke-width', edge.weight);
+        svg.appendChild(line);
+      }
+
+      for (const node of nodes) {
+        const circle = document.createElementNS(ns, 'circle');
+        circle.setAttribute('cx', node.x);
+        circle.setAttribute('cy', node.y);
+        circle.setAttribute('r', 16);
+        circle.setAttribute('fill', node.type === 'hospital' ? '#2980b9' : '#e67e22');
+        circle.setAttribute('stroke', 'black');
+        circle.addEventListener('click', () => {
+          alert(`Node ID: ${node.id}\nType: ${node.type}\nClaim Amount: ${node.claimAmount}\nBilled Amount: ${node.billedAmount}\nConnections: ${node.connections.length}`);
+        });
+        circle.setAttribute('title', `Node ID: ${node.id}\nType: ${node.type}\nClaim Amount: ${node.claimAmount}\nBilled Amount: ${node.billedAmount}\nConnections: ${node.connections.length}`);
+        svg.appendChild(circle);
+
+        const icon = document.createElementNS(ns, 'text');
+        icon.setAttribute('x', node.x);
+        icon.setAttribute('y', node.y + 5);
+        icon.setAttribute('text-anchor', 'middle');
+        icon.setAttribute('font-size', '14');
+        icon.setAttribute('fill', 'white');
+        icon.textContent = node.type === 'hospital' ? '🏥' : '🧑‍⚕️';
+        svg.appendChild(icon);
+      }
+    }
+
+    function applyFilters() {
+      const nodeId = document.getElementById('nodeId').value;
+      const minClaim = parseFloat(document.getElementById('minClaim').value);
+      const maxClaim = parseFloat(document.getElementById('maxClaim').value);
+      const billedThreshold = parseFloat(document.getElementById('billedAmount').value);
+      const claimDate = document.getElementById('claimDate').value;
+      const topN = parseInt(document.getElementById('topN').value);
+      console.log("Filtering by:", nodeId, minClaim, maxClaim, billedThreshold, claimDate, topN);
+    }
+
+    function resetGraph() {
+      console.log("Resetting graph view");
+      renderNetworkGraph();
+    }
+
+    function exportGraphPNG() {
+      const svg = document.getElementById("networkGraph");
+      const serializer = new XMLSerializer();
+      const svgBlob = new Blob([serializer.serializeToString(svg)], { type: "image/svg+xml" });
+      saveAs(svgBlob, "network-graph.svg");
+    }
+
+    function exportGraphCSV() {
+      const csv = "node_id,type,claim_amount,billed_amount\n1,hospital,2000,3000\n2,doctor,1500,2500";
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+      saveAs(blob, "network-data.csv");
+    }
+
+    function exportToPDF() {
+      html2pdf().from(document.body).save("dashboard-snapshot.pdf");
+    }
+  </script>
+</body>
+</html>

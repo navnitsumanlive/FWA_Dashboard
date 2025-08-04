@@ -1,0 +1,1001 @@
+doctor_id,doctor_name,specialty
+D0001,Doctor_1,Oncology
+D0002,Doctor_2,General Medicine
+D0003,Doctor_3,Pediatrics
+D0004,Doctor_4,Oncology
+D0005,Doctor_5,Dermatology
+D0006,Doctor_6,Pediatrics
+D0007,Doctor_7,Pediatrics
+D0008,Doctor_8,Oncology
+D0009,Doctor_9,Orthopedics
+D0010,Doctor_10,Dermatology
+D0011,Doctor_11,Oncology
+D0012,Doctor_12,Dermatology
+D0013,Doctor_13,Dermatology
+D0014,Doctor_14,Pediatrics
+D0015,Doctor_15,General Medicine
+D0016,Doctor_16,Dermatology
+D0017,Doctor_17,Neurology
+D0018,Doctor_18,Pediatrics
+D0019,Doctor_19,Orthopedics
+D0020,Doctor_20,General Medicine
+D0021,Doctor_21,Neurology
+D0022,Doctor_22,Neurology
+D0023,Doctor_23,Orthopedics
+D0024,Doctor_24,General Medicine
+D0025,Doctor_25,Pediatrics
+D0026,Doctor_26,Cardiology
+D0027,Doctor_27,General Medicine
+D0028,Doctor_28,Orthopedics
+D0029,Doctor_29,Neurology
+D0030,Doctor_30,Pediatrics
+D0031,Doctor_31,General Medicine
+D0032,Doctor_32,Cardiology
+D0033,Doctor_33,Cardiology
+D0034,Doctor_34,Dermatology
+D0035,Doctor_35,Dermatology
+D0036,Doctor_36,Oncology
+D0037,Doctor_37,Orthopedics
+D0038,Doctor_38,General Medicine
+D0039,Doctor_39,General Medicine
+D0040,Doctor_40,Oncology
+D0041,Doctor_41,Neurology
+D0042,Doctor_42,Neurology
+D0043,Doctor_43,Oncology
+D0044,Doctor_44,Neurology
+D0045,Doctor_45,Dermatology
+D0046,Doctor_46,General Medicine
+D0047,Doctor_47,Oncology
+D0048,Doctor_48,General Medicine
+D0049,Doctor_49,Cardiology
+D0050,Doctor_50,Dermatology
+D0051,Doctor_51,Pediatrics
+D0052,Doctor_52,Dermatology
+D0053,Doctor_53,Oncology
+D0054,Doctor_54,Pediatrics
+D0055,Doctor_55,Cardiology
+D0056,Doctor_56,Oncology
+D0057,Doctor_57,Orthopedics
+D0058,Doctor_58,General Medicine
+D0059,Doctor_59,Cardiology
+D0060,Doctor_60,General Medicine
+D0061,Doctor_61,Neurology
+D0062,Doctor_62,Orthopedics
+D0063,Doctor_63,Orthopedics
+D0064,Doctor_64,Cardiology
+D0065,Doctor_65,Orthopedics
+D0066,Doctor_66,Pediatrics
+D0067,Doctor_67,Orthopedics
+D0068,Doctor_68,General Medicine
+D0069,Doctor_69,General Medicine
+D0070,Doctor_70,Oncology
+D0071,Doctor_71,General Medicine
+D0072,Doctor_72,Oncology
+D0073,Doctor_73,General Medicine
+D0074,Doctor_74,Pediatrics
+D0075,Doctor_75,Oncology
+D0076,Doctor_76,Dermatology
+D0077,Doctor_77,Neurology
+D0078,Doctor_78,Cardiology
+D0079,Doctor_79,General Medicine
+D0080,Doctor_80,Orthopedics
+D0081,Doctor_81,General Medicine
+D0082,Doctor_82,Orthopedics
+D0083,Doctor_83,Neurology
+D0084,Doctor_84,Neurology
+D0085,Doctor_85,Neurology
+D0086,Doctor_86,Orthopedics
+D0087,Doctor_87,General Medicine
+D0088,Doctor_88,Neurology
+D0089,Doctor_89,Pediatrics
+D0090,Doctor_90,Oncology
+D0091,Doctor_91,Orthopedics
+D0092,Doctor_92,Orthopedics
+D0093,Doctor_93,General Medicine
+D0094,Doctor_94,Orthopedics
+D0095,Doctor_95,Orthopedics
+D0096,Doctor_96,Neurology
+D0097,Doctor_97,General Medicine
+D0098,Doctor_98,Neurology
+D0099,Doctor_99,Oncology
+D0100,Doctor_100,Oncology
+D0101,Doctor_101,Neurology
+D0102,Doctor_102,Oncology
+D0103,Doctor_103,General Medicine
+D0104,Doctor_104,Cardiology
+D0105,Doctor_105,Neurology
+D0106,Doctor_106,Pediatrics
+D0107,Doctor_107,Pediatrics
+D0108,Doctor_108,Orthopedics
+D0109,Doctor_109,Oncology
+D0110,Doctor_110,Pediatrics
+D0111,Doctor_111,Orthopedics
+D0112,Doctor_112,Cardiology
+D0113,Doctor_113,General Medicine
+D0114,Doctor_114,General Medicine
+D0115,Doctor_115,General Medicine
+D0116,Doctor_116,Pediatrics
+D0117,Doctor_117,Cardiology
+D0118,Doctor_118,Pediatrics
+D0119,Doctor_119,Oncology
+D0120,Doctor_120,Pediatrics
+D0121,Doctor_121,Cardiology
+D0122,Doctor_122,Cardiology
+D0123,Doctor_123,Oncology
+D0124,Doctor_124,Cardiology
+D0125,Doctor_125,Cardiology
+D0126,Doctor_126,General Medicine
+D0127,Doctor_127,Oncology
+D0128,Doctor_128,Dermatology
+D0129,Doctor_129,Dermatology
+D0130,Doctor_130,Cardiology
+D0131,Doctor_131,Dermatology
+D0132,Doctor_132,Dermatology
+D0133,Doctor_133,Cardiology
+D0134,Doctor_134,Dermatology
+D0135,Doctor_135,Pediatrics
+D0136,Doctor_136,Orthopedics
+D0137,Doctor_137,Oncology
+D0138,Doctor_138,Orthopedics
+D0139,Doctor_139,Cardiology
+D0140,Doctor_140,General Medicine
+D0141,Doctor_141,Oncology
+D0142,Doctor_142,Cardiology
+D0143,Doctor_143,General Medicine
+D0144,Doctor_144,Orthopedics
+D0145,Doctor_145,Cardiology
+D0146,Doctor_146,Oncology
+D0147,Doctor_147,Oncology
+D0148,Doctor_148,Neurology
+D0149,Doctor_149,Pediatrics
+D0150,Doctor_150,Dermatology
+D0151,Doctor_151,General Medicine
+D0152,Doctor_152,Neurology
+D0153,Doctor_153,Dermatology
+D0154,Doctor_154,Dermatology
+D0155,Doctor_155,Cardiology
+D0156,Doctor_156,Dermatology
+D0157,Doctor_157,Pediatrics
+D0158,Doctor_158,Oncology
+D0159,Doctor_159,Neurology
+D0160,Doctor_160,Dermatology
+D0161,Doctor_161,Cardiology
+D0162,Doctor_162,Pediatrics
+D0163,Doctor_163,Orthopedics
+D0164,Doctor_164,Oncology
+D0165,Doctor_165,Oncology
+D0166,Doctor_166,Neurology
+D0167,Doctor_167,Oncology
+D0168,Doctor_168,Dermatology
+D0169,Doctor_169,Cardiology
+D0170,Doctor_170,Oncology
+D0171,Doctor_171,Oncology
+D0172,Doctor_172,Orthopedics
+D0173,Doctor_173,Orthopedics
+D0174,Doctor_174,General Medicine
+D0175,Doctor_175,Pediatrics
+D0176,Doctor_176,Dermatology
+D0177,Doctor_177,Oncology
+D0178,Doctor_178,Oncology
+D0179,Doctor_179,Cardiology
+D0180,Doctor_180,General Medicine
+D0181,Doctor_181,Pediatrics
+D0182,Doctor_182,General Medicine
+D0183,Doctor_183,Neurology
+D0184,Doctor_184,Pediatrics
+D0185,Doctor_185,Oncology
+D0186,Doctor_186,Oncology
+D0187,Doctor_187,Pediatrics
+D0188,Doctor_188,Oncology
+D0189,Doctor_189,Dermatology
+D0190,Doctor_190,Pediatrics
+D0191,Doctor_191,General Medicine
+D0192,Doctor_192,Pediatrics
+D0193,Doctor_193,Oncology
+D0194,Doctor_194,Dermatology
+D0195,Doctor_195,Dermatology
+D0196,Doctor_196,Neurology
+D0197,Doctor_197,General Medicine
+D0198,Doctor_198,Orthopedics
+D0199,Doctor_199,Orthopedics
+D0200,Doctor_200,Pediatrics
+D0201,Doctor_201,Neurology
+D0202,Doctor_202,Cardiology
+D0203,Doctor_203,Pediatrics
+D0204,Doctor_204,Neurology
+D0205,Doctor_205,General Medicine
+D0206,Doctor_206,General Medicine
+D0207,Doctor_207,General Medicine
+D0208,Doctor_208,General Medicine
+D0209,Doctor_209,General Medicine
+D0210,Doctor_210,Neurology
+D0211,Doctor_211,Neurology
+D0212,Doctor_212,Dermatology
+D0213,Doctor_213,Orthopedics
+D0214,Doctor_214,Oncology
+D0215,Doctor_215,General Medicine
+D0216,Doctor_216,Cardiology
+D0217,Doctor_217,Oncology
+D0218,Doctor_218,Neurology
+D0219,Doctor_219,Cardiology
+D0220,Doctor_220,Cardiology
+D0221,Doctor_221,Cardiology
+D0222,Doctor_222,Dermatology
+D0223,Doctor_223,Neurology
+D0224,Doctor_224,Cardiology
+D0225,Doctor_225,General Medicine
+D0226,Doctor_226,Pediatrics
+D0227,Doctor_227,Cardiology
+D0228,Doctor_228,Dermatology
+D0229,Doctor_229,Oncology
+D0230,Doctor_230,Neurology
+D0231,Doctor_231,Dermatology
+D0232,Doctor_232,Cardiology
+D0233,Doctor_233,Neurology
+D0234,Doctor_234,Pediatrics
+D0235,Doctor_235,Cardiology
+D0236,Doctor_236,Dermatology
+D0237,Doctor_237,Orthopedics
+D0238,Doctor_238,General Medicine
+D0239,Doctor_239,Oncology
+D0240,Doctor_240,Dermatology
+D0241,Doctor_241,Neurology
+D0242,Doctor_242,Cardiology
+D0243,Doctor_243,General Medicine
+D0244,Doctor_244,Cardiology
+D0245,Doctor_245,Neurology
+D0246,Doctor_246,Cardiology
+D0247,Doctor_247,Orthopedics
+D0248,Doctor_248,General Medicine
+D0249,Doctor_249,General Medicine
+D0250,Doctor_250,Neurology
+D0251,Doctor_251,Oncology
+D0252,Doctor_252,Orthopedics
+D0253,Doctor_253,Dermatology
+D0254,Doctor_254,Cardiology
+D0255,Doctor_255,Pediatrics
+D0256,Doctor_256,Cardiology
+D0257,Doctor_257,Cardiology
+D0258,Doctor_258,Dermatology
+D0259,Doctor_259,Cardiology
+D0260,Doctor_260,Orthopedics
+D0261,Doctor_261,Orthopedics
+D0262,Doctor_262,General Medicine
+D0263,Doctor_263,Neurology
+D0264,Doctor_264,Oncology
+D0265,Doctor_265,Pediatrics
+D0266,Doctor_266,Cardiology
+D0267,Doctor_267,Cardiology
+D0268,Doctor_268,Dermatology
+D0269,Doctor_269,Neurology
+D0270,Doctor_270,Orthopedics
+D0271,Doctor_271,Pediatrics
+D0272,Doctor_272,General Medicine
+D0273,Doctor_273,Orthopedics
+D0274,Doctor_274,Neurology
+D0275,Doctor_275,Oncology
+D0276,Doctor_276,General Medicine
+D0277,Doctor_277,Oncology
+D0278,Doctor_278,Dermatology
+D0279,Doctor_279,Dermatology
+D0280,Doctor_280,Cardiology
+D0281,Doctor_281,Oncology
+D0282,Doctor_282,Neurology
+D0283,Doctor_283,Pediatrics
+D0284,Doctor_284,General Medicine
+D0285,Doctor_285,Orthopedics
+D0286,Doctor_286,Neurology
+D0287,Doctor_287,Neurology
+D0288,Doctor_288,Dermatology
+D0289,Doctor_289,Oncology
+D0290,Doctor_290,Cardiology
+D0291,Doctor_291,Cardiology
+D0292,Doctor_292,General Medicine
+D0293,Doctor_293,Dermatology
+D0294,Doctor_294,Neurology
+D0295,Doctor_295,Pediatrics
+D0296,Doctor_296,Dermatology
+D0297,Doctor_297,General Medicine
+D0298,Doctor_298,General Medicine
+D0299,Doctor_299,Dermatology
+D0300,Doctor_300,General Medicine
+D0301,Doctor_301,Dermatology
+D0302,Doctor_302,Orthopedics
+D0303,Doctor_303,Dermatology
+D0304,Doctor_304,Oncology
+D0305,Doctor_305,Dermatology
+D0306,Doctor_306,General Medicine
+D0307,Doctor_307,Oncology
+D0308,Doctor_308,General Medicine
+D0309,Doctor_309,Cardiology
+D0310,Doctor_310,Cardiology
+D0311,Doctor_311,Oncology
+D0312,Doctor_312,Orthopedics
+D0313,Doctor_313,Cardiology
+D0314,Doctor_314,Dermatology
+D0315,Doctor_315,General Medicine
+D0316,Doctor_316,Cardiology
+D0317,Doctor_317,Cardiology
+D0318,Doctor_318,Orthopedics
+D0319,Doctor_319,Oncology
+D0320,Doctor_320,Oncology
+D0321,Doctor_321,Neurology
+D0322,Doctor_322,Orthopedics
+D0323,Doctor_323,Dermatology
+D0324,Doctor_324,Oncology
+D0325,Doctor_325,General Medicine
+D0326,Doctor_326,Orthopedics
+D0327,Doctor_327,Cardiology
+D0328,Doctor_328,General Medicine
+D0329,Doctor_329,General Medicine
+D0330,Doctor_330,Cardiology
+D0331,Doctor_331,Orthopedics
+D0332,Doctor_332,Cardiology
+D0333,Doctor_333,Neurology
+D0334,Doctor_334,General Medicine
+D0335,Doctor_335,Pediatrics
+D0336,Doctor_336,Pediatrics
+D0337,Doctor_337,Dermatology
+D0338,Doctor_338,Oncology
+D0339,Doctor_339,Cardiology
+D0340,Doctor_340,Cardiology
+D0341,Doctor_341,Dermatology
+D0342,Doctor_342,Dermatology
+D0343,Doctor_343,Dermatology
+D0344,Doctor_344,General Medicine
+D0345,Doctor_345,Neurology
+D0346,Doctor_346,Cardiology
+D0347,Doctor_347,General Medicine
+D0348,Doctor_348,Dermatology
+D0349,Doctor_349,Cardiology
+D0350,Doctor_350,General Medicine
+D0351,Doctor_351,Neurology
+D0352,Doctor_352,General Medicine
+D0353,Doctor_353,Neurology
+D0354,Doctor_354,Dermatology
+D0355,Doctor_355,Neurology
+D0356,Doctor_356,Cardiology
+D0357,Doctor_357,Dermatology
+D0358,Doctor_358,Cardiology
+D0359,Doctor_359,Pediatrics
+D0360,Doctor_360,Orthopedics
+D0361,Doctor_361,Neurology
+D0362,Doctor_362,Orthopedics
+D0363,Doctor_363,Orthopedics
+D0364,Doctor_364,Neurology
+D0365,Doctor_365,Dermatology
+D0366,Doctor_366,Pediatrics
+D0367,Doctor_367,Cardiology
+D0368,Doctor_368,General Medicine
+D0369,Doctor_369,Cardiology
+D0370,Doctor_370,General Medicine
+D0371,Doctor_371,Cardiology
+D0372,Doctor_372,Neurology
+D0373,Doctor_373,Pediatrics
+D0374,Doctor_374,General Medicine
+D0375,Doctor_375,Oncology
+D0376,Doctor_376,Dermatology
+D0377,Doctor_377,Cardiology
+D0378,Doctor_378,Cardiology
+D0379,Doctor_379,General Medicine
+D0380,Doctor_380,Dermatology
+D0381,Doctor_381,Dermatology
+D0382,Doctor_382,Neurology
+D0383,Doctor_383,Oncology
+D0384,Doctor_384,Neurology
+D0385,Doctor_385,Neurology
+D0386,Doctor_386,Neurology
+D0387,Doctor_387,Neurology
+D0388,Doctor_388,Neurology
+D0389,Doctor_389,Pediatrics
+D0390,Doctor_390,Dermatology
+D0391,Doctor_391,Neurology
+D0392,Doctor_392,Dermatology
+D0393,Doctor_393,Dermatology
+D0394,Doctor_394,Orthopedics
+D0395,Doctor_395,Pediatrics
+D0396,Doctor_396,Neurology
+D0397,Doctor_397,Cardiology
+D0398,Doctor_398,General Medicine
+D0399,Doctor_399,Oncology
+D0400,Doctor_400,Cardiology
+D0401,Doctor_401,Pediatrics
+D0402,Doctor_402,General Medicine
+D0403,Doctor_403,Pediatrics
+D0404,Doctor_404,Dermatology
+D0405,Doctor_405,General Medicine
+D0406,Doctor_406,Dermatology
+D0407,Doctor_407,Cardiology
+D0408,Doctor_408,Cardiology
+D0409,Doctor_409,General Medicine
+D0410,Doctor_410,General Medicine
+D0411,Doctor_411,Neurology
+D0412,Doctor_412,Pediatrics
+D0413,Doctor_413,Neurology
+D0414,Doctor_414,Pediatrics
+D0415,Doctor_415,Neurology
+D0416,Doctor_416,Dermatology
+D0417,Doctor_417,General Medicine
+D0418,Doctor_418,Cardiology
+D0419,Doctor_419,Pediatrics
+D0420,Doctor_420,Pediatrics
+D0421,Doctor_421,Cardiology
+D0422,Doctor_422,Neurology
+D0423,Doctor_423,Pediatrics
+D0424,Doctor_424,Oncology
+D0425,Doctor_425,Dermatology
+D0426,Doctor_426,General Medicine
+D0427,Doctor_427,Cardiology
+D0428,Doctor_428,General Medicine
+D0429,Doctor_429,Oncology
+D0430,Doctor_430,Pediatrics
+D0431,Doctor_431,Pediatrics
+D0432,Doctor_432,Oncology
+D0433,Doctor_433,Cardiology
+D0434,Doctor_434,Dermatology
+D0435,Doctor_435,Orthopedics
+D0436,Doctor_436,Cardiology
+D0437,Doctor_437,Orthopedics
+D0438,Doctor_438,Oncology
+D0439,Doctor_439,Neurology
+D0440,Doctor_440,Orthopedics
+D0441,Doctor_441,Dermatology
+D0442,Doctor_442,Neurology
+D0443,Doctor_443,Orthopedics
+D0444,Doctor_444,Oncology
+D0445,Doctor_445,Neurology
+D0446,Doctor_446,Oncology
+D0447,Doctor_447,Orthopedics
+D0448,Doctor_448,Oncology
+D0449,Doctor_449,Dermatology
+D0450,Doctor_450,Orthopedics
+D0451,Doctor_451,Orthopedics
+D0452,Doctor_452,Orthopedics
+D0453,Doctor_453,Cardiology
+D0454,Doctor_454,Cardiology
+D0455,Doctor_455,Cardiology
+D0456,Doctor_456,Dermatology
+D0457,Doctor_457,Neurology
+D0458,Doctor_458,Oncology
+D0459,Doctor_459,Pediatrics
+D0460,Doctor_460,Orthopedics
+D0461,Doctor_461,Oncology
+D0462,Doctor_462,Orthopedics
+D0463,Doctor_463,Dermatology
+D0464,Doctor_464,Orthopedics
+D0465,Doctor_465,Cardiology
+D0466,Doctor_466,Pediatrics
+D0467,Doctor_467,General Medicine
+D0468,Doctor_468,Orthopedics
+D0469,Doctor_469,Oncology
+D0470,Doctor_470,Cardiology
+D0471,Doctor_471,General Medicine
+D0472,Doctor_472,Pediatrics
+D0473,Doctor_473,General Medicine
+D0474,Doctor_474,Cardiology
+D0475,Doctor_475,Neurology
+D0476,Doctor_476,Neurology
+D0477,Doctor_477,General Medicine
+D0478,Doctor_478,Dermatology
+D0479,Doctor_479,Oncology
+D0480,Doctor_480,Oncology
+D0481,Doctor_481,General Medicine
+D0482,Doctor_482,Orthopedics
+D0483,Doctor_483,Orthopedics
+D0484,Doctor_484,Oncology
+D0485,Doctor_485,Oncology
+D0486,Doctor_486,Neurology
+D0487,Doctor_487,Dermatology
+D0488,Doctor_488,Cardiology
+D0489,Doctor_489,Orthopedics
+D0490,Doctor_490,Oncology
+D0491,Doctor_491,Neurology
+D0492,Doctor_492,Pediatrics
+D0493,Doctor_493,Neurology
+D0494,Doctor_494,Orthopedics
+D0495,Doctor_495,Orthopedics
+D0496,Doctor_496,Neurology
+D0497,Doctor_497,Cardiology
+D0498,Doctor_498,General Medicine
+D0499,Doctor_499,Orthopedics
+D0500,Doctor_500,Neurology
+D0501,Doctor_501,Oncology
+D0502,Doctor_502,Neurology
+D0503,Doctor_503,Dermatology
+D0504,Doctor_504,General Medicine
+D0505,Doctor_505,Pediatrics
+D0506,Doctor_506,Cardiology
+D0507,Doctor_507,Pediatrics
+D0508,Doctor_508,General Medicine
+D0509,Doctor_509,General Medicine
+D0510,Doctor_510,General Medicine
+D0511,Doctor_511,Pediatrics
+D0512,Doctor_512,Oncology
+D0513,Doctor_513,General Medicine
+D0514,Doctor_514,Neurology
+D0515,Doctor_515,Pediatrics
+D0516,Doctor_516,General Medicine
+D0517,Doctor_517,Neurology
+D0518,Doctor_518,Oncology
+D0519,Doctor_519,Dermatology
+D0520,Doctor_520,Oncology
+D0521,Doctor_521,General Medicine
+D0522,Doctor_522,Pediatrics
+D0523,Doctor_523,Orthopedics
+D0524,Doctor_524,General Medicine
+D0525,Doctor_525,Orthopedics
+D0526,Doctor_526,Neurology
+D0527,Doctor_527,Dermatology
+D0528,Doctor_528,Cardiology
+D0529,Doctor_529,Oncology
+D0530,Doctor_530,Dermatology
+D0531,Doctor_531,General Medicine
+D0532,Doctor_532,Orthopedics
+D0533,Doctor_533,Oncology
+D0534,Doctor_534,Orthopedics
+D0535,Doctor_535,Pediatrics
+D0536,Doctor_536,Orthopedics
+D0537,Doctor_537,Pediatrics
+D0538,Doctor_538,Neurology
+D0539,Doctor_539,Oncology
+D0540,Doctor_540,Oncology
+D0541,Doctor_541,Cardiology
+D0542,Doctor_542,General Medicine
+D0543,Doctor_543,Pediatrics
+D0544,Doctor_544,Cardiology
+D0545,Doctor_545,Orthopedics
+D0546,Doctor_546,Orthopedics
+D0547,Doctor_547,Cardiology
+D0548,Doctor_548,Oncology
+D0549,Doctor_549,Orthopedics
+D0550,Doctor_550,Neurology
+D0551,Doctor_551,Neurology
+D0552,Doctor_552,Cardiology
+D0553,Doctor_553,Pediatrics
+D0554,Doctor_554,Pediatrics
+D0555,Doctor_555,Cardiology
+D0556,Doctor_556,Pediatrics
+D0557,Doctor_557,Oncology
+D0558,Doctor_558,Oncology
+D0559,Doctor_559,Pediatrics
+D0560,Doctor_560,Neurology
+D0561,Doctor_561,Pediatrics
+D0562,Doctor_562,Oncology
+D0563,Doctor_563,Dermatology
+D0564,Doctor_564,General Medicine
+D0565,Doctor_565,Orthopedics
+D0566,Doctor_566,Dermatology
+D0567,Doctor_567,Pediatrics
+D0568,Doctor_568,Neurology
+D0569,Doctor_569,Cardiology
+D0570,Doctor_570,Pediatrics
+D0571,Doctor_571,Neurology
+D0572,Doctor_572,General Medicine
+D0573,Doctor_573,Pediatrics
+D0574,Doctor_574,Oncology
+D0575,Doctor_575,Cardiology
+D0576,Doctor_576,Neurology
+D0577,Doctor_577,Neurology
+D0578,Doctor_578,Neurology
+D0579,Doctor_579,General Medicine
+D0580,Doctor_580,Pediatrics
+D0581,Doctor_581,General Medicine
+D0582,Doctor_582,Orthopedics
+D0583,Doctor_583,Orthopedics
+D0584,Doctor_584,Pediatrics
+D0585,Doctor_585,Oncology
+D0586,Doctor_586,General Medicine
+D0587,Doctor_587,Cardiology
+D0588,Doctor_588,Neurology
+D0589,Doctor_589,Neurology
+D0590,Doctor_590,Pediatrics
+D0591,Doctor_591,Oncology
+D0592,Doctor_592,Orthopedics
+D0593,Doctor_593,Orthopedics
+D0594,Doctor_594,Neurology
+D0595,Doctor_595,Pediatrics
+D0596,Doctor_596,General Medicine
+D0597,Doctor_597,Orthopedics
+D0598,Doctor_598,General Medicine
+D0599,Doctor_599,Oncology
+D0600,Doctor_600,Orthopedics
+D0601,Doctor_601,Orthopedics
+D0602,Doctor_602,Dermatology
+D0603,Doctor_603,Orthopedics
+D0604,Doctor_604,Cardiology
+D0605,Doctor_605,Pediatrics
+D0606,Doctor_606,Pediatrics
+D0607,Doctor_607,General Medicine
+D0608,Doctor_608,Oncology
+D0609,Doctor_609,Orthopedics
+D0610,Doctor_610,Cardiology
+D0611,Doctor_611,General Medicine
+D0612,Doctor_612,Dermatology
+D0613,Doctor_613,General Medicine
+D0614,Doctor_614,General Medicine
+D0615,Doctor_615,Orthopedics
+D0616,Doctor_616,Dermatology
+D0617,Doctor_617,General Medicine
+D0618,Doctor_618,Cardiology
+D0619,Doctor_619,Cardiology
+D0620,Doctor_620,Pediatrics
+D0621,Doctor_621,Dermatology
+D0622,Doctor_622,Dermatology
+D0623,Doctor_623,Pediatrics
+D0624,Doctor_624,General Medicine
+D0625,Doctor_625,Dermatology
+D0626,Doctor_626,Cardiology
+D0627,Doctor_627,Cardiology
+D0628,Doctor_628,Orthopedics
+D0629,Doctor_629,Dermatology
+D0630,Doctor_630,General Medicine
+D0631,Doctor_631,Pediatrics
+D0632,Doctor_632,Pediatrics
+D0633,Doctor_633,General Medicine
+D0634,Doctor_634,Oncology
+D0635,Doctor_635,Neurology
+D0636,Doctor_636,Orthopedics
+D0637,Doctor_637,Pediatrics
+D0638,Doctor_638,Dermatology
+D0639,Doctor_639,Orthopedics
+D0640,Doctor_640,Dermatology
+D0641,Doctor_641,Oncology
+D0642,Doctor_642,Cardiology
+D0643,Doctor_643,Orthopedics
+D0644,Doctor_644,Pediatrics
+D0645,Doctor_645,Orthopedics
+D0646,Doctor_646,Orthopedics
+D0647,Doctor_647,Orthopedics
+D0648,Doctor_648,Neurology
+D0649,Doctor_649,Orthopedics
+D0650,Doctor_650,Dermatology
+D0651,Doctor_651,Cardiology
+D0652,Doctor_652,Oncology
+D0653,Doctor_653,General Medicine
+D0654,Doctor_654,Orthopedics
+D0655,Doctor_655,Pediatrics
+D0656,Doctor_656,Orthopedics
+D0657,Doctor_657,Pediatrics
+D0658,Doctor_658,Dermatology
+D0659,Doctor_659,Pediatrics
+D0660,Doctor_660,General Medicine
+D0661,Doctor_661,Cardiology
+D0662,Doctor_662,Pediatrics
+D0663,Doctor_663,Pediatrics
+D0664,Doctor_664,Cardiology
+D0665,Doctor_665,General Medicine
+D0666,Doctor_666,Orthopedics
+D0667,Doctor_667,Pediatrics
+D0668,Doctor_668,Cardiology
+D0669,Doctor_669,Dermatology
+D0670,Doctor_670,Cardiology
+D0671,Doctor_671,Dermatology
+D0672,Doctor_672,General Medicine
+D0673,Doctor_673,Orthopedics
+D0674,Doctor_674,Cardiology
+D0675,Doctor_675,Oncology
+D0676,Doctor_676,Oncology
+D0677,Doctor_677,Neurology
+D0678,Doctor_678,Pediatrics
+D0679,Doctor_679,General Medicine
+D0680,Doctor_680,Cardiology
+D0681,Doctor_681,Oncology
+D0682,Doctor_682,Pediatrics
+D0683,Doctor_683,Oncology
+D0684,Doctor_684,Cardiology
+D0685,Doctor_685,Dermatology
+D0686,Doctor_686,Cardiology
+D0687,Doctor_687,Neurology
+D0688,Doctor_688,Cardiology
+D0689,Doctor_689,Cardiology
+D0690,Doctor_690,Neurology
+D0691,Doctor_691,General Medicine
+D0692,Doctor_692,Cardiology
+D0693,Doctor_693,Neurology
+D0694,Doctor_694,Pediatrics
+D0695,Doctor_695,Dermatology
+D0696,Doctor_696,Dermatology
+D0697,Doctor_697,Cardiology
+D0698,Doctor_698,General Medicine
+D0699,Doctor_699,General Medicine
+D0700,Doctor_700,Pediatrics
+D0701,Doctor_701,Cardiology
+D0702,Doctor_702,Dermatology
+D0703,Doctor_703,General Medicine
+D0704,Doctor_704,Cardiology
+D0705,Doctor_705,Oncology
+D0706,Doctor_706,General Medicine
+D0707,Doctor_707,Neurology
+D0708,Doctor_708,Oncology
+D0709,Doctor_709,General Medicine
+D0710,Doctor_710,Dermatology
+D0711,Doctor_711,Orthopedics
+D0712,Doctor_712,Oncology
+D0713,Doctor_713,Pediatrics
+D0714,Doctor_714,Pediatrics
+D0715,Doctor_715,Dermatology
+D0716,Doctor_716,General Medicine
+D0717,Doctor_717,Cardiology
+D0718,Doctor_718,General Medicine
+D0719,Doctor_719,Dermatology
+D0720,Doctor_720,Pediatrics
+D0721,Doctor_721,General Medicine
+D0722,Doctor_722,Pediatrics
+D0723,Doctor_723,Oncology
+D0724,Doctor_724,Cardiology
+D0725,Doctor_725,Oncology
+D0726,Doctor_726,Pediatrics
+D0727,Doctor_727,Pediatrics
+D0728,Doctor_728,Orthopedics
+D0729,Doctor_729,Orthopedics
+D0730,Doctor_730,Oncology
+D0731,Doctor_731,Neurology
+D0732,Doctor_732,Oncology
+D0733,Doctor_733,Orthopedics
+D0734,Doctor_734,Pediatrics
+D0735,Doctor_735,Dermatology
+D0736,Doctor_736,Oncology
+D0737,Doctor_737,Pediatrics
+D0738,Doctor_738,Dermatology
+D0739,Doctor_739,Dermatology
+D0740,Doctor_740,Orthopedics
+D0741,Doctor_741,Oncology
+D0742,Doctor_742,General Medicine
+D0743,Doctor_743,Cardiology
+D0744,Doctor_744,Orthopedics
+D0745,Doctor_745,Orthopedics
+D0746,Doctor_746,General Medicine
+D0747,Doctor_747,Cardiology
+D0748,Doctor_748,Pediatrics
+D0749,Doctor_749,Neurology
+D0750,Doctor_750,Oncology
+D0751,Doctor_751,Neurology
+D0752,Doctor_752,Pediatrics
+D0753,Doctor_753,Orthopedics
+D0754,Doctor_754,Cardiology
+D0755,Doctor_755,Orthopedics
+D0756,Doctor_756,Dermatology
+D0757,Doctor_757,Orthopedics
+D0758,Doctor_758,Orthopedics
+D0759,Doctor_759,Pediatrics
+D0760,Doctor_760,Pediatrics
+D0761,Doctor_761,Pediatrics
+D0762,Doctor_762,Neurology
+D0763,Doctor_763,Dermatology
+D0764,Doctor_764,Pediatrics
+D0765,Doctor_765,Cardiology
+D0766,Doctor_766,Neurology
+D0767,Doctor_767,General Medicine
+D0768,Doctor_768,Cardiology
+D0769,Doctor_769,Oncology
+D0770,Doctor_770,Oncology
+D0771,Doctor_771,Cardiology
+D0772,Doctor_772,Pediatrics
+D0773,Doctor_773,General Medicine
+D0774,Doctor_774,General Medicine
+D0775,Doctor_775,Neurology
+D0776,Doctor_776,General Medicine
+D0777,Doctor_777,Oncology
+D0778,Doctor_778,Dermatology
+D0779,Doctor_779,Pediatrics
+D0780,Doctor_780,General Medicine
+D0781,Doctor_781,Neurology
+D0782,Doctor_782,Oncology
+D0783,Doctor_783,Dermatology
+D0784,Doctor_784,Orthopedics
+D0785,Doctor_785,Orthopedics
+D0786,Doctor_786,Dermatology
+D0787,Doctor_787,Oncology
+D0788,Doctor_788,Neurology
+D0789,Doctor_789,Dermatology
+D0790,Doctor_790,Pediatrics
+D0791,Doctor_791,Pediatrics
+D0792,Doctor_792,Orthopedics
+D0793,Doctor_793,General Medicine
+D0794,Doctor_794,Neurology
+D0795,Doctor_795,Orthopedics
+D0796,Doctor_796,General Medicine
+D0797,Doctor_797,General Medicine
+D0798,Doctor_798,Pediatrics
+D0799,Doctor_799,Oncology
+D0800,Doctor_800,Cardiology
+D0801,Doctor_801,Oncology
+D0802,Doctor_802,Cardiology
+D0803,Doctor_803,Dermatology
+D0804,Doctor_804,Pediatrics
+D0805,Doctor_805,General Medicine
+D0806,Doctor_806,Neurology
+D0807,Doctor_807,Cardiology
+D0808,Doctor_808,Oncology
+D0809,Doctor_809,General Medicine
+D0810,Doctor_810,Cardiology
+D0811,Doctor_811,Cardiology
+D0812,Doctor_812,Cardiology
+D0813,Doctor_813,Neurology
+D0814,Doctor_814,Pediatrics
+D0815,Doctor_815,Neurology
+D0816,Doctor_816,Orthopedics
+D0817,Doctor_817,General Medicine
+D0818,Doctor_818,Pediatrics
+D0819,Doctor_819,Pediatrics
+D0820,Doctor_820,Pediatrics
+D0821,Doctor_821,Oncology
+D0822,Doctor_822,Pediatrics
+D0823,Doctor_823,Neurology
+D0824,Doctor_824,Pediatrics
+D0825,Doctor_825,Dermatology
+D0826,Doctor_826,General Medicine
+D0827,Doctor_827,Pediatrics
+D0828,Doctor_828,General Medicine
+D0829,Doctor_829,Dermatology
+D0830,Doctor_830,Dermatology
+D0831,Doctor_831,General Medicine
+D0832,Doctor_832,Cardiology
+D0833,Doctor_833,Orthopedics
+D0834,Doctor_834,Oncology
+D0835,Doctor_835,Cardiology
+D0836,Doctor_836,Cardiology
+D0837,Doctor_837,Neurology
+D0838,Doctor_838,Oncology
+D0839,Doctor_839,Oncology
+D0840,Doctor_840,Cardiology
+D0841,Doctor_841,Pediatrics
+D0842,Doctor_842,Neurology
+D0843,Doctor_843,Neurology
+D0844,Doctor_844,Dermatology
+D0845,Doctor_845,Oncology
+D0846,Doctor_846,Cardiology
+D0847,Doctor_847,Dermatology
+D0848,Doctor_848,General Medicine
+D0849,Doctor_849,Orthopedics
+D0850,Doctor_850,Neurology
+D0851,Doctor_851,General Medicine
+D0852,Doctor_852,General Medicine
+D0853,Doctor_853,Pediatrics
+D0854,Doctor_854,Orthopedics
+D0855,Doctor_855,General Medicine
+D0856,Doctor_856,General Medicine
+D0857,Doctor_857,Orthopedics
+D0858,Doctor_858,Orthopedics
+D0859,Doctor_859,General Medicine
+D0860,Doctor_860,Orthopedics
+D0861,Doctor_861,General Medicine
+D0862,Doctor_862,General Medicine
+D0863,Doctor_863,Pediatrics
+D0864,Doctor_864,Cardiology
+D0865,Doctor_865,General Medicine
+D0866,Doctor_866,Dermatology
+D0867,Doctor_867,Neurology
+D0868,Doctor_868,Oncology
+D0869,Doctor_869,Cardiology
+D0870,Doctor_870,Cardiology
+D0871,Doctor_871,Cardiology
+D0872,Doctor_872,Pediatrics
+D0873,Doctor_873,General Medicine
+D0874,Doctor_874,Pediatrics
+D0875,Doctor_875,General Medicine
+D0876,Doctor_876,Pediatrics
+D0877,Doctor_877,Pediatrics
+D0878,Doctor_878,Neurology
+D0879,Doctor_879,Dermatology
+D0880,Doctor_880,Pediatrics
+D0881,Doctor_881,Neurology
+D0882,Doctor_882,Orthopedics
+D0883,Doctor_883,Dermatology
+D0884,Doctor_884,Pediatrics
+D0885,Doctor_885,Oncology
+D0886,Doctor_886,Cardiology
+D0887,Doctor_887,Orthopedics
+D0888,Doctor_888,Orthopedics
+D0889,Doctor_889,Neurology
+D0890,Doctor_890,Orthopedics
+D0891,Doctor_891,Dermatology
+D0892,Doctor_892,Pediatrics
+D0893,Doctor_893,Pediatrics
+D0894,Doctor_894,Oncology
+D0895,Doctor_895,Cardiology
+D0896,Doctor_896,Neurology
+D0897,Doctor_897,Cardiology
+D0898,Doctor_898,Orthopedics
+D0899,Doctor_899,Oncology
+D0900,Doctor_900,Cardiology
+D0901,Doctor_901,Dermatology
+D0902,Doctor_902,Pediatrics
+D0903,Doctor_903,Orthopedics
+D0904,Doctor_904,Oncology
+D0905,Doctor_905,Cardiology
+D0906,Doctor_906,Neurology
+D0907,Doctor_907,Dermatology
+D0908,Doctor_908,Dermatology
+D0909,Doctor_909,Cardiology
+D0910,Doctor_910,Pediatrics
+D0911,Doctor_911,Cardiology
+D0912,Doctor_912,Orthopedics
+D0913,Doctor_913,Cardiology
+D0914,Doctor_914,Dermatology
+D0915,Doctor_915,Oncology
+D0916,Doctor_916,Cardiology
+D0917,Doctor_917,Pediatrics
+D0918,Doctor_918,Oncology
+D0919,Doctor_919,Neurology
+D0920,Doctor_920,General Medicine
+D0921,Doctor_921,Cardiology
+D0922,Doctor_922,Pediatrics
+D0923,Doctor_923,Oncology
+D0924,Doctor_924,Pediatrics
+D0925,Doctor_925,Neurology
+D0926,Doctor_926,Dermatology
+D0927,Doctor_927,Pediatrics
+D0928,Doctor_928,Oncology
+D0929,Doctor_929,Pediatrics
+D0930,Doctor_930,Pediatrics
+D0931,Doctor_931,Pediatrics
+D0932,Doctor_932,Orthopedics
+D0933,Doctor_933,Orthopedics
+D0934,Doctor_934,Dermatology
+D0935,Doctor_935,Cardiology
+D0936,Doctor_936,Pediatrics
+D0937,Doctor_937,Neurology
+D0938,Doctor_938,Cardiology
+D0939,Doctor_939,Neurology
+D0940,Doctor_940,Cardiology
+D0941,Doctor_941,Dermatology
+D0942,Doctor_942,Pediatrics
+D0943,Doctor_943,Pediatrics
+D0944,Doctor_944,General Medicine
+D0945,Doctor_945,Neurology
+D0946,Doctor_946,Cardiology
+D0947,Doctor_947,Cardiology
+D0948,Doctor_948,Orthopedics
+D0949,Doctor_949,General Medicine
+D0950,Doctor_950,Oncology
+D0951,Doctor_951,Oncology
+D0952,Doctor_952,Orthopedics
+D0953,Doctor_953,Orthopedics
+D0954,Doctor_954,Orthopedics
+D0955,Doctor_955,Neurology
+D0956,Doctor_956,Neurology
+D0957,Doctor_957,Dermatology
+D0958,Doctor_958,Dermatology
+D0959,Doctor_959,Orthopedics
+D0960,Doctor_960,General Medicine
+D0961,Doctor_961,Cardiology
+D0962,Doctor_962,Neurology
+D0963,Doctor_963,General Medicine
+D0964,Doctor_964,Pediatrics
+D0965,Doctor_965,Neurology
+D0966,Doctor_966,Neurology
+D0967,Doctor_967,Dermatology
+D0968,Doctor_968,Cardiology
+D0969,Doctor_969,Cardiology
+D0970,Doctor_970,Oncology
+D0971,Doctor_971,Oncology
+D0972,Doctor_972,Oncology
+D0973,Doctor_973,Oncology
+D0974,Doctor_974,Pediatrics
+D0975,Doctor_975,Pediatrics
+D0976,Doctor_976,Neurology
+D0977,Doctor_977,Orthopedics
+D0978,Doctor_978,Dermatology
+D0979,Doctor_979,Dermatology
+D0980,Doctor_980,Oncology
+D0981,Doctor_981,Neurology
+D0982,Doctor_982,General Medicine
+D0983,Doctor_983,Orthopedics
+D0984,Doctor_984,Neurology
+D0985,Doctor_985,Orthopedics
+D0986,Doctor_986,Orthopedics
+D0987,Doctor_987,Orthopedics
+D0988,Doctor_988,Neurology
+D0989,Doctor_989,Oncology
+D0990,Doctor_990,Dermatology
+D0991,Doctor_991,Dermatology
+D0992,Doctor_992,Oncology
+D0993,Doctor_993,Orthopedics
+D0994,Doctor_994,General Medicine
+D0995,Doctor_995,Cardiology
+D0996,Doctor_996,Neurology
+D0997,Doctor_997,Cardiology
+D0998,Doctor_998,Oncology
+D0999,Doctor_999,General Medicine
+D1000,Doctor_1000,Neurology

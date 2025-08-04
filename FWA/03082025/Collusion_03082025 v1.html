@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare Claims Collusion Detection</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto 1fr 1fr;
+            gap: 20px;
+            padding: 20px;
+            height: 100vh;
+        }
+        .header {
+            grid-column: 1 / -1;
+            background-color: #2c3e50;
+            color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .panel {
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .chart-container {
+            flex: 1;
+            min-height: 300px;
+        }
+        .network-container {
+            width: 100%;
+            height: 100%;
+        }
+        .controls {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+            flex-wrap: wrap;
+        }
+        select, button {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            background-color: white;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        .tooltip {
+            position: absolute;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            border-radius: 5px;
+            pointer-events: none;
+            font-size: 12px;
+            max-width: 300px;
+            z-index: 100;
+        }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            font-size: 12px;
+        }
+        .legend-color {
+            width: 15px;
+            height: 15px;
+            margin-right: 5px;
+            border-radius: 3px;
+        }
+        .kpi-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .kpi {
+            background: rgba(255,255,255,0.1);
+            padding: 5px;
+            border-radius: 4px;
+        }
+        .kpi-value {
+            font-weight: bold;
+            color: #3498db;
+        }
+        .icon {
+            font-size: 20px;
+            margin-right: 5px;
+        }
+        .hospital-icon {
+            color: #3498db;
+        }
+        .doctor-icon {
+            color: #2ecc71;
+        }
+        .referral-icon {
+            color: #e74c3c;
+        }
+        .service-icon {
+            color: #f39c12;
+        }
+        .tab-container {
+            display: flex;
+            margin-bottom: 15px;
+        }
+        .tab {
+            padding: 8px 15px;
+            background: #eee;
+            cursor: pointer;
+            border-radius: 4px 4px 0 0;
+            margin-right: 5px;
+        }
+        .tab.active {
+            background: #3498db;
+            color: white;
+        }
+        .chart-content {
+            width: 100%;
+            height: 100%;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>Healthcare Claims Collusion Detection</h1>
+            <p>Identifying suspicious provider networks using Louvain community detection</p>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-title">Provider Network Graph</div>
+            <div class="controls">
+                <select id="network-type">
+                    <option value="hospital-doctor">Hospital-Doctor Associations</option>
+                    <option value="doctor-doctor">Referring-Servicing Doctor Associations</option>
+                </select>
+                <select id="specialty-filter">
+                    <option value="all">All Specialties</option>
+                </select>
+                <select id="hospital-type-filter">
+                    <option value="all">All Hospital Types</option>
+                </select>
+                <button id="run-analysis">Run Analysis</button>
+            </div>
+            <div class="chart-container network-container" id="network-chart"></div>
+            <div class="legend" id="network-legend"></div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-title">Community Statistics</div>
+            <div class="chart-container" id="community-stats-chart"></div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-title">Analysis Visualizations</div>
+            <div class="tab-container">
+                <div class="tab active" data-tab="claim-distribution">Claim Distribution</div>
+                <div class="tab" data-tab="claim-types">Claim Types</div>
+                <div class="tab" data-tab="specialty-analysis">Specialty Analysis</div>
+                <div class="tab" data-tab="hospital-analysis">Hospital Analysis</div>
+            </div>
+            <div class="chart-container" id="analysis-container">
+                <div id="claim-distribution-chart" class="chart-content" style="display: block;"></div>
+                <div id="claim-types-chart" class="chart-content" style="display: none;"></div>
+                <div id="specialty-analysis-chart" class="chart-content" style="display: none;"></div>
+                <div id="hospital-analysis-chart" class="chart-content" style="display: none;"></div>
+            </div>
+        </div>
+        
+        <div class="panel">
+            <div class="panel-title">Temporal Analysis</div>
+            <div class="controls">
+                <select id="time-metric">
+                    <option value="count">Claim Count</option>
+                    <option value="value">Claim Value</option>
+                </select>
+                <select id="time-period">
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="yearly">Yearly</option>
+                </select>
+            </div>
+            <div class="chart-container" id="temporal-chart"></div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip" style="opacity: 0;"></div>
+
+    <script>
+        // Color scheme
+        const colorScheme = {
+            hospital: '#3498db',
+            doctor: '#2ecc71',
+            referring: '#e74c3c',
+            servicing: '#f39c12',
+            communities: ['#9b59b6', '#1abc9c', '#34495e', '#e67e22'],
+            suspicious: '#e74c3c',
+            normal: '#2ecc71',
+            claimTypes: {
+                'MRI': '#8e44ad',
+                'CT Scan': '#3498db',
+                'X-Ray': '#2ecc71',
+                'Lab Tests': '#f1c40f',
+                'Consultation': '#e67e22',
+                'Surgery': '#e74c3c',
+                'Physical Therapy': '#1abc9c',
+                'Specialty Consultation': '#9b59b6',
+                'Ultrasound': '#3498db',
+                'Anesthesia': '#34495e'
+            },
+            specialties: {
+                'Cardiology': '#e74c3c',
+                'Radiology': '#3498db',
+                'Orthopedics': '#2ecc71',
+                'Neurology': '#9b59b6',
+                'Oncology': '#34495e',
+                'Pediatrics': '#f1c40f',
+                'General Practice': '#e67e22'
+            },
+            hospitalTypes: {
+                'General': '#3498db',
+                'Specialty': '#9b59b6',
+                'Teaching': '#e74c3c',
+                'Community': '#2ecc71',
+                'Private': '#f39c12',
+                'Public': '#1abc9c'
+            }
+        };
+
+        // Generate sample data
+        function generateSampleData() {
+            const specialties = ['Cardiology', 'Radiology', 'Orthopedics', 'Neurology', 'Oncology', 'Pediatrics', 'General Practice'];
+            const hospitalTypes = ['General', 'Specialty', 'Teaching', 'Community', 'Private', 'Public'];
+            
+            // Generate hospital-doctor data
+            const hospitalDoctorNodes = [];
+            const hospitalDoctorLinks = [];
+            
+            const hospitalCount = 60;
+            const doctorCount = 1140;
+            
+            // Generate hospitals
+            for (let i = 1; i <= hospitalCount; i++) {
+                hospitalDoctorNodes.push({
+                    id: `H${i}`,
+                    name: `${i % 5 === 0 ? 'City' : i % 3 === 0 ? 'Community' : i % 2 === 0 ? 'General' : 'Regional'} ${i % 4 === 0 ? 'Medical Center' : 'Hospital'}`,
+                    type: 'hospital',
+                    size: 30 + Math.floor(Math.random() * 20),
+                    hospitalType: hospitalTypes[Math.floor(Math.random() * hospitalTypes.length)],
+                    community: i % 4 + 1,
+                    claimsLastYear: 500 + Math.floor(Math.random() * 2000),
+                    avgClaimValue: 800 + Math.floor(Math.random() * 1200),
+                    readmissionRate: (3 + Math.random() * 5).toFixed(1) + '%'
+                });
+            }
+            
+            // Generate doctors
+            for (let i = 1; i <= doctorCount; i++) {
+                const specialty = specialties[Math.floor(Math.random() * specialties.length)];
+                hospitalDoctorNodes.push({
+                    id: `D${i}`,
+                    name: `Dr. ${['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Miller', 'Davis'][i % 7]} ${['A', 'B', 'C', 'D', 'E', 'F', 'G'][i % 7]}`,
+                    type: 'doctor',
+                    specialty: specialty,
+                    size: 10 + Math.floor(Math.random() * 15),
+                    community: i % 4 + 1,
+                    affiliatedHospital: `H${Math.floor(Math.random() * hospitalCount) + 1}`,
+                    claimsLastYear: 50 + Math.floor(Math.random() * 200),
+                    avgClaimValue: 600 + Math.floor(Math.random() * 1400),
+                    referralRate: (10 + Math.random() * 30).toFixed(1) + '%'
+                });
+                
+                // Create hospital-doctor links
+                hospitalDoctorLinks.push({
+                    source: `H${Math.floor(Math.random() * hospitalCount) + 1}`,
+                    target: `D${i}`,
+                    value: 50 + Math.floor(Math.random() * 150)
+                });
+            }
+            
+            // Generate some inter-doctor connections
+            for (let i = 1; i <= doctorCount; i += 10) {
+                for (let j = i + 1; j <= Math.min(i + 5, doctorCount); j++) {
+                    if (hospitalDoctorNodes[i].community === hospitalDoctorNodes[j].community) {
+                        hospitalDoctorLinks.push({
+                            source: `D${i}`,
+                            target: `D${j}`,
+                            value: 20 + Math.floor(Math.random() * 80)
+                        });
+                    }
+                }
+            }
+            
+            // Generate doctor-doctor data
+            const doctorDoctorNodes = [];
+            const doctorDoctorLinks = [];
+            
+            const referringCount = 500;
+            const servicingCount = 500;
+            
+            // Generate referring doctors
+            for (let i = 1; i <= referringCount; i++) {
+                const specialty = specialties[Math.floor(Math.random() * specialties.length)];
+                doctorDoctorNodes.push({
+                    id: `RD${i}`,
+                    name: `Dr. ${['Wilson', 'Moore', 'Taylor', 'Anderson', 'Thomas', 'Jackson', 'White'][i % 7]} ${['H', 'I', 'J', 'K', 'L', 'M', 'N'][i % 7]}`,
+                    type: 'referring',
+                    specialty: specialty,
+                    size: 12 + Math.floor(Math.random() * 12),
+                    community: i % 4 + 1,
+                    claimsLastYear: 100 + Math.floor(Math.random() * 300),
+                    avgClaimValue: 800 + Math.floor(Math.random() * 1200),
+                    referralRate: (20 + Math.random() * 40).toFixed(1) + '%'
+                });
+            }
+            
+            // Generate servicing doctors
+            for (let i = 1; i <= servicingCount; i++) {
+                const specialty = specialties[Math.floor(Math.random() * specialties.length)];
+                doctorDoctorNodes.push({
+                    id: `SD${i}`,
+                    name: `Dr. ${['Harris', 'Martin', 'Garcia', 'Martinez', 'Robinson', 'Clark', 'Rodriguez'][i % 7]} ${['O', 'P', 'Q', 'R', 'S', 'T', 'U'][i % 7]}`,
+                    type: 'servicing',
+                    specialty: specialty,
+                    size: 15 + Math.floor(Math.random() * 15),
+                    community: i % 4 + 1,
+                    claimsLastYear: 150 + Math.floor(Math.random() * 400),
+                    avgClaimValue: 1000 + Math.floor(Math.random() * 1500),
+                    procedureRate: (30 + Math.random() * 50).toFixed(1) + '%'
+                });
+            }
+            
+            // Generate referral relationships
+            for (let i = 1; i <= referringCount; i++) {
+                const ref = doctorDoctorNodes.find(d => d.id === `RD${i}`);
+                const compatibleServicing = doctorDoctorNodes.filter(d => 
+                    d.type === 'servicing' && 
+                    d.community === ref.community && 
+                    (d.specialty === ref.specialty || Math.random() > 0.7)
+                );
+                
+                const referralCount = 1 + Math.floor(Math.random() * 3);
+                for (let j = 0; j < referralCount && j < compatibleServicing.length; j++) {
+                    doctorDoctorLinks.push({
+                        source: `RD${i}`,
+                        target: compatibleServicing[j].id,
+                        value: 50 + Math.floor(Math.random() * 150)
+                    });
+                    
+                    // Add reciprocal relationships in suspicious community
+                    if (ref.community === 1 && Math.random() > 0.5) {
+                        doctorDoctorLinks.push({
+                            source: compatibleServicing[j].id,
+                            target: `RD${i}`,
+                            value: 30 + Math.floor(Math.random() * 100)
+                        });
+                    }
+                }
+            }
+            
+            return {
+                'hospital-doctor': {
+                    nodes: hospitalDoctorNodes,
+                    links: hospitalDoctorLinks,
+                    communities: [
+                        { id: 1, name: 'City General Cluster', suspicious: true, 
+                          avgClaimValue: 1850, externalConnections: 2, internalConnections: 6,
+                          claimTypes: { 'MRI': 35, 'CT Scan': 25, 'Lab Tests': 20, 'Surgery': 15, 'Consultation': 5 } },
+                        { id: 2, name: 'Community Hospital Group', suspicious: false,
+                          avgClaimValue: 950, externalConnections: 5, internalConnections: 1,
+                          claimTypes: { 'X-Ray': 30, 'Lab Tests': 25, 'Consultation': 20, 'Physical Therapy': 15, 'MRI': 10 } },
+                        { id: 3, name: 'Specialty Network', suspicious: false,
+                          avgClaimValue: 1200, externalConnections: 4, internalConnections: 1,
+                          claimTypes: { 'Surgery': 40, 'Anesthesia': 25, 'Lab Tests': 15, 'Consultation': 10, 'MRI': 10 } },
+                        { id: 4, name: 'Independent Practitioners', suspicious: false,
+                          avgClaimValue: 850, externalConnections: 3, internalConnections: 1,
+                          claimTypes: { 'Consultation': 50, 'Lab Tests': 20, 'X-Ray': 15, 'Physical Therapy': 10, 'MRI': 5 } }
+                    ],
+                    specialties: specialties,
+                    hospitalTypes: hospitalTypes
+                },
+                'doctor-doctor': {
+                    nodes: doctorDoctorNodes,
+                    links: doctorDoctorLinks,
+                    communities: [
+                        { id: 1, name: 'Potential Collusion Group', suspicious: true, 
+                          avgClaimValue: 2250, reciprocity: 0.8, density: 0.9,
+                          claimTypes: { 'MRI': 40, 'Specialty Consultation': 25, 'CT Scan': 20, 'Ultrasound': 10, 'Lab Tests': 5 } },
+                        { id: 2, name: 'Standard Referral Network', suspicious: false,
+                          avgClaimValue: 1150, reciprocity: 0.2, density: 0.3,
+                          claimTypes: { 'Consultation': 35, 'Lab Tests': 25, 'X-Ray': 20, 'Physical Therapy': 15, 'MRI': 5 } },
+                        { id: 3, name: 'Low Activity Group', suspicious: false,
+                          avgClaimValue: 980, reciprocity: 0.1, density: 0.2,
+                          claimTypes: { 'Consultation': 50, 'Lab Tests': 30, 'X-Ray': 15, 'Physical Therapy': 5 } },
+                        { id: 4, name: 'Independent Provider', suspicious: false,
+                          avgClaimValue: 850, reciprocity: 0, density: 0,
+                          claimTypes: { 'Consultation': 70, 'Lab Tests': 20, 'X-Ray': 10 } }
+                    ],
+                    specialties: specialties,
+                    hospitalTypes: hospitalTypes
+                }
+            };
+        }
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Generate sample data
+            const sampleData = generateSampleData();
+            
+            // Set up event listeners
+            document.getElementById('run-analysis').addEventListener('click', function() {
+                updateDashboard(sampleData);
+            });
+            
+            document.getElementById('network-type').addEventListener('change', function() {
+                updateFilterOptions(sampleData);
+                updateDashboard(sampleData);
+            });
+            
+            document.getElementById('time-metric').addEventListener('change', function() {
+                updateTemporalChart(sampleData);
+            });
+            
+            document.getElementById('time-period').addEventListener('change', function() {
+                updateTemporalChart(sampleData);
+            });
+            
+            document.getElementById('specialty-filter').addEventListener('change', function() {
+                updateDashboard(sampleData);
+            });
+            
+            document.getElementById('hospital-type-filter').addEventListener('change', function() {
+                updateDashboard(sampleData);
+            });
+            
+            // Set up tab switching
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', function() {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    this.classList.add('active');
+                    
+                    document.querySelectorAll('.chart-content').forEach(content => {
+                        content.style.display = 'none';
+                    });
+                    
+                    document.getElementById(`${this.dataset.tab}-chart`).style.display = 'block';
+                    
+                    // Update the chart if needed
+                    const networkType = document.getElementById('network-type').value;
+                    const data = sampleData[networkType];
+                    
+                    if (this.dataset.tab === 'claim-types') {
+                        renderClaimTypesChart(data);
+                    } else if (this.dataset.tab === 'specialty-analysis') {
+                        renderSpecialtyAnalysisChart(data);
+                    } else if (this.dataset.tab === 'hospital-analysis') {
+                        renderHospitalAnalysisChart(data);
+                    }
+                });
+            });
+            
+            // Initial setup
+            updateFilterOptions(sampleData);
+            updateDashboard(sampleData);
+        });
+
+        function updateFilterOptions(sampleData) {
+            const networkType = document.getElementById('network-type').value;
+            const data = sampleData[networkType];
+            
+            // Update specialty filter
+            const specialtyFilter = document.getElementById('specialty-filter');
+            specialtyFilter.innerHTML = '<option value="all">All Specialties</option>';
+            data.specialties.forEach(specialty => {
+                const option = document.createElement('option');
+                option.value = specialty;
+                option.textContent = specialty;
+                specialtyFilter.appendChild(option);
+            });
+            
+            // Update hospital type filter
+            const hospitalTypeFilter = document.getElementById('hospital-type-filter');
+            hospitalTypeFilter.innerHTML = '<option value="all">All Hospital Types</option>';
+            data.hospitalTypes.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type;
+                hospitalTypeFilter.appendChild(option);
+            });
+        }
+
+        function updateDashboard(sampleData) {
+            const networkType = document.getElementById('network-type').value;
+            const specialtyFilter = document.getElementById('specialty-filter').value;
+            const hospitalTypeFilter = document.getElementById('hospital-type-filter').value;
+            
+            // Filter data based on selections
+            let data = JSON.parse(JSON.stringify(sampleData[networkType]));
+            
+            if (specialtyFilter !== 'all') {
+                data.nodes = data.nodes.filter(node => 
+                    node.type === 'hospital' || node.specialty === specialtyFilter
+                );
+                // Filter links to only include filtered nodes
+                const nodeIds = new Set(data.nodes.map(n => n.id));
+                data.links = data.links.filter(link => 
+                    nodeIds.has(link.source) && nodeIds.has(link.target)
+                );
+            }
+            
+            if (hospitalTypeFilter !== 'all' && networkType === 'hospital-doctor') {
+                data.nodes = data.nodes.filter(node => 
+                    node.type !== 'hospital' || node.hospitalType === hospitalTypeFilter
+                );
+                // Filter links to only include filtered nodes
+                const nodeIds = new Set(data.nodes.map(n => n.id));
+                data.links = data.links.filter(link => 
+                    nodeIds.has(link.source) && nodeIds.has(link.target)
+                );
+            }
+            
+            renderNetworkChart(data);
+            renderCommunityStats(data);
+            renderClaimDistribution(data);
+            renderClaimTypesChart(data);
+            renderSpecialtyAnalysisChart(data);
+            renderHospitalAnalysisChart(data);
+            renderTemporalChart(data);
+        }
+
+        function renderNetworkChart(data) {
+            const container = document.getElementById('network-chart');
+            container.innerHTML = '';
+            
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            const svg = d3.select(container)
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height);
+            
+            // Create a group for the zoomable area
+            const g = svg.append('g');
+            
+            // Create a tooltip
+            const tooltip = d3.select('#tooltip');
+            
+            // Create the simulation
+            const simulation = d3.forceSimulation(data.nodes)
+                .force('link', d3.forceLink(data.links).id(d => d.id).distance(100))
+                .force('charge', d3.forceManyBody().strength(-300))
+                .force('center', d3.forceCenter(width / 2, height / 2))
+                .force('collision', d3.forceCollide().radius(d => d.size));
+            
+            // Draw links
+            const link = g.append('g')
+                .selectAll('line')
+                .data(data.links)
+                .enter().append('line')
+                .attr('stroke-width', d => Math.sqrt(d.value) / 5)
+                .attr('stroke', '#999')
+                .attr('stroke-opacity', 0.6);
+            
+            // Draw nodes with icons
+            const node = g.append('g')
+                .selectAll('g')
+                .data(data.nodes)
+                .enter().append('g')
+                .call(d3.drag()
+                    .on('start', dragstarted)
+                    .on('drag', dragged)
+                    .on('end', dragended));
+            
+            // Add circles for nodes
+            node.append('circle')
+                .attr('r', d => d.size)
+                .attr('fill', d => {
+                    if (d.type === 'hospital') return colorScheme.hospital;
+                    if (d.type === 'doctor') return colorScheme.doctor;
+                    if (d.type === 'referring') return colorScheme.referring;
+                    if (d.type === 'servicing') return colorScheme.servicing;
+                    return '#ccc';
+                })
+                .attr('stroke', d => d.community && data.communities.find(c => c.id === d.community).suspicious ? colorScheme.suspicious : '#fff')
+                .attr('stroke-width', 2);
+            
+            // Add icons to nodes
+            node.append('text')
+                .attr('font-family', 'FontAwesome')
+                .attr('text-anchor', 'middle')
+                .attr('dy', 4)
+                .attr('fill', 'white')
+                .style('pointer-events', 'none')
+                .text(d => {
+                    if (d.type === 'hospital') return '\uf0f8'; // hospital icon
+                    if (d.type === 'doctor') return '\uf0f0'; // user-md icon
+                    if (d.type === 'referring') return '\uf234'; // referral icon
+                    if (d.type === 'servicing') return '\uf0f1'; // stethoscope icon
+                    return '\uf007'; // user icon
+                })
+                .attr('font-size', d => d.size * 0.7);
+            
+            // Add labels
+            const labels = g.append('g')
+                .selectAll('text')
+                .data(data.nodes)
+                .enter().append('text')
+                .attr('dy', d => -d.size - 5)
+                .attr('text-anchor', 'middle')
+                .text(d => d.name)
+                .style('font-size', '10px')
+                .style('fill', '#333')
+                .style('pointer-events', 'none')
+                .style('display', d => d.size > 12 ? 'block' : 'none');
+            
+            // Update positions on each tick
+            simulation.on('tick', () => {
+                link
+                    .attr('x1', d => d.source.x)
+                    .attr('y1', d => d.source.y)
+                    .attr('x2', d => d.target.x)
+                    .attr('y2', d => d.target.y);
+                
+                node
+                    .attr('transform', d => `translate(${d.x},${d.y})`);
+                
+                labels
+                    .attr('x', d => d.x)
+                    .attr('y', d => d.y);
+            });
+            
+            // Add tooltip interactions
+            node.on('mouseover', function(event, d) {
+                tooltip.transition()
+                    .duration(200)
+                    .style('opacity', .9);
+                
+                const community = data.communities.find(c => c.id === d.community);
+                const communityInfo = community ? 
+                    `<div><strong>Community:</strong> ${community.name}</div>
+                     <div><strong>Status:</strong> ${community.suspicious ? '<span style="color:#e74c3c">Suspicious</span>' : '<span style="color:#2ecc71">Normal</span>'}</div>` : '';
+                
+                let specialtyInfo = '';
+                if (d.specialty) {
+                    specialtyInfo = `<div><strong>Specialty:</strong> ${d.specialty}</div>`;
+                }
+                
+                let hospitalInfo = '';
+                if (d.hospitalType) {
+                    hospitalInfo = `<div><strong>Hospital Type:</strong> ${d.hospitalType}</div>`;
+                }
+                
+                // KPIs
+                const kpis = `
+                    <div class="kpi-container">
+                        <div class="kpi"><strong>Claims (12mo):</strong> <span class="kpi-value">${d.claimsLastYear || 'N/A'}</span></div>
+                        <div class="kpi"><strong>Avg Claim:</strong> <span class="kpi-value">$${d.avgClaimValue || 'N/A'}</span></div>
+                        ${d.referralRate ? `<div class="kpi"><strong>Referral Rate:</strong> <span class="kpi-value">${d.referralRate}</span></div>` : ''}
+                        ${d.procedureRate ? `<div class="kpi"><strong>Procedure Rate:</strong> <span class="kpi-value">${d.procedureRate}</span></div>` : ''}
+                        ${d.readmissionRate ? `<div class="kpi"><strong>Readmission Rate:</strong> <span class="kpi-value">${d.readmissionRate}</span></div>` : ''}
+                    </div>
+                `;
+                
+                tooltip.html(`
+                    <div style="margin-bottom:5px;">
+                        <i class="${d.type === 'hospital' ? 'hospital-icon' : d.type === 'referring' ? 'referral-icon' : d.type === 'servicing' ? 'service-icon' : 'doctor-icon'} icon fas ${d.type === 'hospital' ? 'fa-hospital' : d.type === 'doctor' ? 'fa-user-md' : d.type === 'referring' ? 'fa-share-square' : 'fa-stethoscope'}"></i>
+                        <strong>${d.name}</strong>
+                    </div>
+                    <div><strong>Type:</strong> ${d.type.charAt(0).toUpperCase() + d.type.slice(1)}</div>
+                    ${specialtyInfo}
+                    ${hospitalInfo}
+                    ${communityInfo}
+                    ${kpis}
+                `)
+                    .style('left', (event.pageX + 10) + 'px')
+                    .style('top', (event.pageY - 28) + 'px');
+                
+                d3.select(this).select('circle').attr('stroke', '#000').attr('stroke-width', 3);
+            })
+            .on('mouseout', function() {
+                tooltip.transition()
+                    .duration(500)
+                    .style('opacity', 0);
+                
+                d3.select(this).select('circle').attr('stroke', d => {
+                    const community = data.communities.find(c => c.id === d.community);
+                    return community && community.suspicious ? colorScheme.suspicious : '#fff';
+                }).attr('stroke-width', 2);
+            });
+            
+            // Add zoom functionality
+            svg.call(d3.zoom()
+                .extent([[0, 0], [width, height]])
+                .scaleExtent([0.5, 8])
+                .on('zoom', zoomed));
+            
+            function zoomed(event) {
+                g.attr('transform', event.transform);
+            }
+            
+            function dragstarted(event, d) {
+                if (!event.active) simulation.alphaTarget(0.3).restart();
+                d.fx = d.x;
+                d.fy = d.y;
+            }
+            
+            function dragged(event, d) {
+                d.fx = event.x;
+                d.fy = event.y;
+            }
+            
+            function dragended(event, d) {
+                if (!event.active) simulation.alphaTarget(0);
+                d.fx = null;
+                d.fy = null;
+            }
+            
+            // Update legend
+            const legendContainer = document.getElementById('network-legend');
+            legendContainer.innerHTML = '';
+            
+            const types = [...new Set(data.nodes.map(n => n.type))];
+            types.forEach(type => {
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                
+                const colorBox = document.createElement('div');
+                colorBox.className = 'legend-color';
+                colorBox.style.backgroundColor = colorScheme[type];
+                
+                const label = document.createElement('span');
+                label.textContent = type.charAt(0).toUpperCase() + type.slice(1);
+                
+                item.appendChild(colorBox);
+                item.appendChild(label);
+                legendContainer.appendChild(item);
+            });
+            
+            // Add suspicious community indicator if any
+            if (data.communities.some(c => c.suspicious)) {
+                const item = document.createElement('div');
+                item.className = 'legend-item';
+                
+                const colorBox = document.createElement('div');
+                colorBox.className = 'legend-color';
+                colorBox.style.backgroundColor = colorScheme.suspicious;
+                colorBox.style.border = '2px solid ' + colorScheme.suspicious;
+                
+                const label = document.createElement('span');
+                label.textContent = 'Suspicious Community';
+                
+                item.appendChild(colorBox);
+                item.appendChild(label);
+                legendContainer.appendChild(item);
+            }
+        }
+
+        function renderCommunityStats(data) {
+            const container = document.getElementById('community-stats-chart');
+            container.innerHTML = '';
+            
+            const chart = echarts.init(container);
+            
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'shadow'
+                    }
+                },
+                legend: {
+                    data: ['Average Claim Value', 'Internal Connections', 'External Connections']
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: data.communities.map(c => c.name)
+                },
+                yAxis: [
+                    {
+                        type: 'value',
+                        name: 'Claim Value',
+                        axisLabel: {
+                            formatter: '${value}'
+                        }
+                    },
+                    {
+                        type: 'value',
+                        name: 'Connections',
+                        position: 'right'
+                    }
+                ],
+                series: [
+                    {
+                        name: 'Average Claim Value',
+                        type: 'bar',
+                        data: data.communities.map(c => ({
+                            value: c.avgClaimValue,
+                            itemStyle: {
+                                color: c.suspicious ? colorScheme.suspicious : colorScheme.normal
+                            }
+                        })),
+                        yAxisIndex: 0
+                    },
+                    {
+                        name: 'Internal Connections',
+                        type: 'line',
+                        data: data.communities.map(c => c.internalConnections || c.density * 10),
+                        yAxisIndex: 1,
+                        symbol: 'circle',
+                        symbolSize: 8,
+                        lineStyle: {
+                            width: 3
+                        }
+                    },
+                    {
+                        name: 'External Connections',
+                        type: 'line',
+                        data: data.communities.map(c => c.externalConnections || (1 - c.density) * 10),
+                        yAxisIndex: 1,
+                        symbol: 'diamond',
+                        symbolSize: 8,
+                        lineStyle: {
+                            width: 3,
+                            type: 'dashed'
+                        }
+                    }
+                ]
+            };
+            
+            chart.setOption(option);
+            
+            window.addEventListener('resize', function() {
+                chart.resize();
+            });
+        }
+
+        function renderClaimDistribution(data) {
+            const container = document.getElementById('claim-distribution-chart');
+            container.innerHTML = '';
+            
+            const ctx = document.createElement('canvas');
+            container.appendChild(ctx);
+            
+            // Prepare data
+            const communityData = {};
+            data.communities.forEach(community => {
+                communityData[community.id] = {
+                    label: community.name + (community.suspicious ? ' (Suspicious)' : ''),
+                    data: generateRandomClaimValues(community.avgClaimValue, 50),
+                    backgroundColor: community.suspicious ? 
+                        'rgba(231, 76, 60, 0.5)' : 'rgba(46, 204, 113, 0.5)',
+                    borderColor: community.suspicious ? 
+                        'rgba(231, 76, 60, 1)' : 'rgba(46, 204, 113, 1)',
+                    borderWidth: 1
+                };
+            });
+            
+            new Chart(ctx, {
+                type: 'boxplot',
+                data: {
+                    labels: data.communities.map(c => c.name),
+                    datasets: Object.keys(communityData).map(key => communityData[key])
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Claim Value Distribution by Community'
+                        },
+                        tooltip: {
+                            callbacks: {
+                                beforeTitle: function(context) {
+                                    const communityId = context[0].datasetIndex + 1;
+                                    const community = data.communities.find(c => c.id === communityId);
+                                    return community.suspicious ? '⚠️ ' + community.name : community.name;
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Claim Value ($)'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            function generateRandomClaimValues(mean, count) {
+                const result = [];
+                for (let i = 0; i < count; i++) {
+                    // Generate values with some variance around the mean
+                    const value = mean * (0.7 + Math.random() * 0.6);
+                    result.push(Math.round(value));
+                }
+                return result;
+            }
+        }
+
+        function renderClaimTypesChart(data) {
+            const container = document.getElementById('claim-types-chart');
+            container.innerHTML = '';
+            
+            const ctx = document.createElement('canvas');
+            container.appendChild(ctx);
+            
+            // Prepare data for stacked bar chart
+            const labels = data.communities.map(c => c.name);
+            const claimTypes = Object.keys(data.communities[0].claimTypes);
+            
+            const datasets = claimTypes.map(type => {
+                return {
+                    label: type,
+                    data: data.communities.map(c => c.claimTypes[type]),
+                    backgroundColor: colorScheme.claimTypes[type] || '#cccccc'
+                };
+            });
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Claim Types by Community'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: true,
+                        },
+                        y: {
+                            stacked: true,
+                            title: {
+                                display: true,
+                                text: 'Percentage of Claims'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderSpecialtyAnalysisChart(data) {
+            const container = document.getElementById('specialty-analysis-chart');
+            container.innerHTML = '';
+            
+            const ctx = document.createElement('canvas');
+            container.appendChild(ctx);
+            
+            // Prepare data - aggregate by specialty and community
+            const specialtyData = {};
+            
+            data.nodes.forEach(node => {
+                if (node.specialty) {
+                    if (!specialtyData[node.specialty]) {
+                        specialtyData[node.specialty] = {
+                            communities: {}
+                        };
+                    }
+                    
+                    const community = data.communities.find(c => c.id === node.community);
+                    if (community) {
+                        if (!specialtyData[node.specialty].communities[community.id]) {
+                            specialtyData[node.specialty].communities[community.id] = {
+                                count: 0,
+                                communityName: community.name,
+                                suspicious: community.suspicious
+                            };
+                        }
+                        specialtyData[node.specialty].communities[community.id].count++;
+                    }
+                }
+            });
+            
+            // Convert to chart.js format
+            const specialties = Object.keys(specialtyData);
+            const communities = [...new Set(data.communities.map(c => c.id))].sort();
+            
+            const datasets = communities.map(communityId => {
+                const community = data.communities.find(c => c.id === communityId);
+                return {
+                    label: community.name + (community.suspicious ? ' (Suspicious)' : ''),
+                    data: specialties.map(specialty => 
+                        specialtyData[specialty].communities[communityId]?.count || 0
+                    ),
+                    backgroundColor: community.suspicious ? 
+                        'rgba(231, 76, 60, 0.5)' : 'rgba(46, 204, 113, 0.5)',
+                    borderColor: community.suspicious ? 
+                        'rgba(231, 76, 60, 1)' : 'rgba(46, 204, 113, 1)',
+                    borderWidth: 1
+                };
+            });
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: specialties,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Provider Specialties by Community'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: false,
+                        },
+                        y: {
+                            stacked: false,
+                            title: {
+                                display: true,
+                                text: 'Number of Providers'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderHospitalAnalysisChart(data) {
+            const networkType = document.getElementById('network-type').value;
+            if (networkType !== 'hospital-doctor') {
+                document.getElementById('hospital-analysis-chart').innerHTML = '<p>Hospital analysis only available for Hospital-Doctor network</p>';
+                return;
+            }
+            
+            const container = document.getElementById('hospital-analysis-chart');
+            container.innerHTML = '';
+            
+            const ctx = document.createElement('canvas');
+            container.appendChild(ctx);
+            
+            // Prepare data - aggregate by hospital type and community
+            const hospitalTypeData = {};
+            
+            data.nodes.forEach(node => {
+                if (node.type === 'hospital' && node.hospitalType) {
+                    if (!hospitalTypeData[node.hospitalType]) {
+                        hospitalTypeData[node.hospitalType] = {
+                            communities: {}
+                        };
+                    }
+                    
+                    const community = data.communities.find(c => c.id === node.community);
+                    if (community) {
+                        if (!hospitalTypeData[node.hospitalType].communities[community.id]) {
+                            hospitalTypeData[node.hospitalType].communities[community.id] = {
+                                count: 0,
+                                communityName: community.name,
+                                suspicious: community.suspicious
+                            };
+                        }
+                        hospitalTypeData[node.hospitalType].communities[community.id].count++;
+                    }
+                }
+            });
+            
+            // Convert to chart.js format
+            const hospitalTypes = Object.keys(hospitalTypeData);
+            const communities = [...new Set(data.communities.map(c => c.id))].sort();
+            
+            const datasets = communities.map(communityId => {
+                const community = data.communities.find(c => c.id === communityId);
+                return {
+                    label: community.name + (community.suspicious ? ' (Suspicious)' : ''),
+                    data: hospitalTypes.map(type => 
+                        hospitalTypeData[type].communities[communityId]?.count || 0
+                    ),
+                    backgroundColor: community.suspicious ? 
+                        'rgba(231, 76, 60, 0.5)' : 'rgba(46, 204, 113, 0.5)',
+                    borderColor: community.suspicious ? 
+                        'rgba(231, 76, 60, 1)' : 'rgba(46, 204, 113, 1)',
+                    borderWidth: 1
+                };
+            });
+            
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: hospitalTypes,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: 'Hospital Types by Community'
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        x: {
+                            stacked: false,
+                        },
+                        y: {
+                            stacked: false,
+                            title: {
+                                display: true,
+                                text: 'Number of Hospitals'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function renderTemporalChart(data) {
+            const metric = document.getElementById('time-metric').value;
+            const period = document.getElementById('time-period').value;
+            
+            const container = document.getElementById('temporal-chart');
+            container.innerHTML = '';
+            
+            const ctx = document.createElement('canvas');
+            container.appendChild(ctx);
+            
+            // Generate time series data based on selected period
+            let timeLabels;
+            if (period === 'monthly') {
+                timeLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+            } else if (period === 'quarterly') {
+                timeLabels = ['Q1', 'Q2', 'Q3', 'Q4'];
+            } else {
+                timeLabels = ['2020', '2021', '2022', '2023'];
+            }
+            
+            const datasets = data.communities.map(community => {
+                const baseValue = metric === 'value' ? 
+                    community.avgClaimValue / (period === 'monthly' ? 10 : period === 'quarterly' ? 3 : 1) : 
+                    (community.internalConnections || community.density * 20) / (period === 'monthly' ? 1 : period === 'quarterly' ? 3 : 12);
+                
+                const dataPoints = timeLabels.map((label, i) => {
+                    // Add some seasonality and random variation
+                    const seasonality = period === 'monthly' ? (1 + 0.2 * Math.sin(i / 2)) : 1;
+                    const variation = 0.8 + Math.random() * 0.4;
+                    return Math.round(baseValue * seasonality * variation);
+                });
+                
+                return {
+                    label: community.name + (community.suspicious ? ' (Suspicious)' : ''),
+                    data: dataPoints,
+                    borderColor: community.suspicious ? colorScheme.suspicious : colorScheme.normal,
+                    backgroundColor: 'rgba(255, 255, 255, 0)',
+                    borderWidth: 2,
+                    pointRadius: community.suspicious ? 4 : 3,
+                    pointHoverRadius: 6,
+                    tension: 0.3
+                };
+            });
+            
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: timeLabels,
+                    datasets: datasets
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        title: {
+                            display: true,
+                            text: `${timeLabels.length === 12 ? 'Monthly' : timeLabels.length === 4 ? 'Quarterly' : 'Yearly'} ${metric === 'value' ? 'Claim Values' : 'Claim Counts'} by Community`
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: metric === 'value' ? 'Total Claim Value ($)' : 'Number of Claims'
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    }
+                }
+            });
+        }
+    </script>
+</body>
+</html>

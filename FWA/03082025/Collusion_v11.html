@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Collusion Detection Dashboard</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f4f4f4;
+    }
+    .tab {
+      padding: 12px 20px;
+      background: #fff;
+      border-bottom: 2px solid #ccc;
+      cursor: pointer;
+      display: inline-block;
+    }
+    .tab.active {
+      background: #e0f7fa;
+      border-bottom: 2px solid #0097a7;
+    }
+    #graph {
+      width: 100%;
+      height: 600px;
+      background: white;
+    }
+    .tooltip {
+      position: absolute;
+      background: rgba(0,0,0,0.7);
+      color: #fff;
+      padding: 6px;
+      border-radius: 4px;
+      pointer-events: none;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<div style="padding: 20px; background: #0097a7; color: white;">
+  <h2>Collusion Detection Dashboard</h2>
+  <p>Powered by Louvain Community Detection Algorithm</p>
+</div>
+
+<div style="padding: 10px;">
+  <span class="tab active" onclick="switchData('hospital')">Hospital & Doctor</span>
+  <span class="tab" onclick="switchData('referral')">Referral & Treating Doctor</span>
+</div>
+
+<div id="graph"></div>
+<div class="tooltip" id="tooltip" style="opacity:0;"></div>
+
+<script>
+  const tooltip = d3.select("#tooltip");
+
+  const dataSets = {
+    hospital: {
+      nodes: [
+        { id: "D1", group: "G1", label: "Dr. A" },
+        { id: "D2", group: "G1", label: "Dr. B" },
+        { id: "H1", group: "G1", label: "Hosp. X" },
+        { id: "D3", group: "G2", label: "Dr. C" },
+        { id: "H2", group: "G2", label: "Hosp. Y" }
+      ],
+      links: [
+        { source: "D1", target: "H1" },
+        { source: "D2", target: "H1" },
+        { source: "D3", target: "H2" }
+      ]
+    },
+    referral: {
+      nodes: [
+        { id: "R1", group: "G3", label: "Ref. Dr. A" },
+        { id: "T1", group: "G3", label: "Treat. Dr. B" },
+        { id: "R2", group: "G4", label: "Ref. Dr. C" },
+        { id: "T2", group: "G4", label: "Treat. Dr. D" }
+      ],
+      links: [
+        { source: "R1", target: "T1" },
+        { source: "R2", target: "T2" }
+      ]
+    }
+  };
+
+  let currentData = dataSets.hospital;
+
+  function switchData(key) {
+    d3.selectAll('.tab').classed('active', false);
+    d3.selectAll('.tab').filter(function() {
+      return this.textContent.includes(key === 'hospital' ? 'Hospital' : 'Referral');
+    }).classed('active', true);
+    
+    currentData = dataSets[key];
+    d3.select("#graph").selectAll("*").remove();
+    renderGraph();
+  }
+
+  function renderGraph() {
+    const width = document.getElementById("graph").clientWidth;
+    const height = 600;
+
+    const svg = d3.select("#graph")
+      .append("svg")
+      .attr("width", width)
+      .attr("height", height);
+
+    const color = d3.scaleOrdinal(d3.schemeCategory10);
+
+    const simulation = d3.forceSimulation(currentData.nodes)
+      .force("link", d3.forceLink(currentData.links).id(d => d.id).distance(100))
+      .force("charge", d3.forceManyBody().strength(-400))
+      .force("center", d3.forceCenter(width / 2, height / 2));
+
+    const link = svg.append("g")
+      .selectAll("line")
+      .data(currentData.links)
+      .enter().append("line")
+      .attr("stroke", "#aaa");
+
+    const node = svg.append("g")
+      .selectAll("circle")
+      .data(currentData.nodes)
+      .enter().append("circle")
+      .attr("r", 20)
+      .attr("fill", d => color(d.group))
+      .on("mouseover", (event, d) => {
+        tooltip.transition().duration(200).style("opacity", .9);
+        tooltip.html(`<strong>${d.label}</strong><br/>Group: ${d.group}`)
+          .style("left", (event.pageX + 10) + "px")
+          .style("top", (event.pageY - 20) + "px");
+      })
+      .on("mouseout", () => tooltip.transition().duration(500).style("opacity", 0))
+      .call(d3.drag()
+        .on("start", dragStart)
+        .on("drag", dragging)
+        .on("end", dragEnd));
+
+    function dragStart(event, d) {
+      if (!event.active) simulation.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    }
+
+    function dragging(event, d) {
+      d.fx = event.x;
+      d.fy = event.y;
+    }
+
+    function dragEnd(event, d) {
+      if (!event.active) simulation.alphaTarget(0);
+      d.fx = null;
+      d.fy = null;
+    }
+
+    const label = svg.append("g")
+      .selectAll("text")
+      .data(currentData.nodes)
+      .enter().append("text")
+      .text(d => d.label)
+      .attr("font-size", 10)
+      .attr("dx", -20)
+      .attr("dy", 35);
+
+    simulation.on("tick", () => {
+      link
+        .attr("x1", d => d.source.x)
+        .attr("y1", d => d.source.y)
+        .attr("x2", d => d.target.x)
+        .attr("y2", d => d.target.y);
+      
+      node
+        .attr("cx", d => d.x)
+        .attr("cy", d => d.y);
+      
+      label
+        .attr("x", d => d.x)
+        .attr("y", d => d.y);
+    });
+  }
+
+  renderGraph();
+</script>
+
+</body>
+</html>

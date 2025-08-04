@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FWA Dashboard - Advanced</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      background: #f7f9fc;
+      color: #2c3e50;
+    }
+    header {
+      background: #3498db;
+      color: white;
+      padding: 30px;
+      text-align: center;
+      font-size: 1.5em;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      transition: transform 0.3s;
+    }
+    .card:hover {
+      transform: translateY(-5px);
+    }
+    .card h3 {
+      margin-top: 0;
+      color: #2980b9;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    svg {
+      width: 100%;
+      height: 320px;
+    }
+    select {
+      margin: 10px 0;
+      padding: 5px;
+      font-size: 1em;
+    }
+  </style>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>🚨 Healthcare FWA Analytics Dashboard</h1>
+    <p>Interactive and Animated View of Model Intelligence & Claim Behavior</p>
+  </header>
+  <div class="dashboard">
+    <div class="card">
+      <h3>🧠 Model Outlier Detection</h3>
+      <svg id="bubbleChart"></svg>
+    </div>
+    <div class="card">
+      <h3>⚖️ Model vs Assessor Decisions</h3>
+      <svg id="motionChart"></svg>
+    </div>
+    <div class="card">
+      <h3>📈 Yearly Flagged Claims (2023–2025)</h3>
+      <svg id="trendChart"></svg>
+    </div>
+    <div class="card">
+      <h3>🧬 Diagnosis Code Hotspots</h3>
+      <svg id="diagChart"></svg>
+    </div>
+    <div class="card">
+      <h3>🔥 Risk Score Spread</h3>
+      <svg id="riskChart"></svg>
+    </div>
+    <div class="card">
+      <h3>🔄 Rule Overlap Analysis</h3>
+      <svg id="vennChart"></svg>
+    </div>
+    <div class="card">
+      <h3>💲 Savings by Rule Category</h3>
+      <svg id="savingsChart"></svg>
+    </div>
+    <div class="card">
+      <h3>🧮 Claim Type Distribution Over Time</h3>
+      <svg id="claimTypeChart"></svg>
+    </div>
+  </div>
+  <script>
+    function animatedBarChart(svg, data, xValue, yValue, color) {
+      const x = d3.scaleLinear().domain([0, d3.max(data, xValue)]).range([0, 350]);
+      const y = d3.scaleBand().domain(data.map(yValue)).range([0, 300]).padding(0.3);
+
+      svg.selectAll("rect")
+        .data(data)
+        .enter().append("rect")
+        .attr("y", d => y(yValue(d)))
+        .attr("width", 0)
+        .attr("height", y.bandwidth())
+        .attr("fill", color)
+        .transition().duration(800)
+        .attr("width", d => x(xValue(d)));
+    }
+
+    // Chart: Savings by Rule Category
+    animatedBarChart(d3.select("#savingsChart"), [
+      { rule: "High Cost", amount: 120000 },
+      { rule: "Duplicate", amount: 90000 },
+      { rule: "Ineligible", amount: 70000 },
+      { rule: "Time Window", amount: 50000 }
+    ], d => d.amount, d => d.rule, "#1abc9c");
+
+    // Chart: Claim Type Distribution Over Time
+    const claimSvg = d3.select("#claimTypeChart");
+    const claimTypes = [
+      { year: "2023", IPD: 40, OPD: 60 },
+      { year: "2024", IPD: 70, OPD: 90 },
+      { year: "2025", IPD: 100, OPD: 130 }
+    ];
+    const xC = d3.scaleBand().domain(claimTypes.map(d => d.year)).range([40, 400]).padding(0.3);
+    const yC = d3.scaleLinear().domain([0, 150]).range([300, 0]);
+    claimSvg.selectAll("rect.ipd")
+      .data(claimTypes)
+      .enter().append("rect")
+      .attr("class", "ipd")
+      .attr("x", d => xC(d.year))
+      .attr("y", d => yC(d.IPD))
+      .attr("width", xC.bandwidth() / 2)
+      .attr("height", d => 300 - yC(d.IPD))
+      .attr("fill", "#2980b9");
+
+    claimSvg.selectAll("rect.opd")
+      .data(claimTypes)
+      .enter().append("rect")
+      .attr("class", "opd")
+      .attr("x", d => xC(d.year) + xC.bandwidth() / 2)
+      .attr("y", d => yC(d.OPD))
+      .attr("width", xC.bandwidth() / 2)
+      .attr("height", d => 300 - yC(d.OPD))
+      .attr("fill", "#8e44ad");
+
+    // Bubble Chart: Model Outlier Detection
+    const bubbleSvg = d3.select("#bubbleChart");
+    const bubbleData = d3.range(20).map((_, i) => ({
+      id: `P${i+1}`,
+      value: Math.round(Math.random() * 100 + 20)
+    }));
+    const radius = d3.scaleSqrt().domain([0, 150]).range([5, 40]);
+    const simulation = d3.forceSimulation(bubbleData)
+      .force("charge", d3.forceManyBody().strength(1))
+      .force("center", d3.forceCenter(200, 150))
+      .force("collision", d3.forceCollide().radius(d => radius(d.value) + 2))
+      .on("tick", () => {
+        const bubbles = bubbleSvg.selectAll("circle").data(bubbleData);
+        bubbles.enter().append("circle")
+          .attr("r", d => radius(d.value))
+          .attr("fill", "#e74c3c")
+        .merge(bubbles)
+          .attr("cx", d => d.x)
+          .attr("cy", d => d.y);
+      });
+  </script>
+</body>
+</html>

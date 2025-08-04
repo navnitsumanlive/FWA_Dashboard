@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Provider View Dashboard</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background: #f4f6f8;
+    }
+    header {
+      background-color: #34495e;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+    }
+    .container {
+      padding: 20px;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(500px, 1fr));
+      gap: 20px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      padding: 20px;
+    }
+    h2 {
+      margin-bottom: 10px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    table th, table td {
+      border: 1px solid #ddd;
+      padding: 8px;
+      text-align: left;
+    }
+    canvas {
+      width: 100% !important;
+      height: 300px !important;
+    }
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <header>
+    <h1>Provider Performance Dashboard</h1>
+  </header>
+  <div class="container">
+
+    <div class="card">
+      <h2>Provider Scorecard</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Provider</th>
+            <th>Total Claims</th>
+            <th>% Flagged</th>
+            <th>% Overridden</th>
+            <th>Risk Tier</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>Provider A</td><td>500</td><td>45%</td><td>10%</td><td>High</td></tr>
+          <tr><td>Provider B</td><td>320</td><td>20%</td><td>5%</td><td>Medium</td></tr>
+          <tr><td>Provider C</td><td>210</td><td>30%</td><td>15%</td><td>High</td></tr>
+          <tr><td>Provider D</td><td>150</td><td>10%</td><td>2%</td><td>Low</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="card">
+      <h2>Provider Risk Comparison</h2>
+      <canvas id="providerRiskChart"></canvas>
+    </div>
+
+    <div class="card">
+      <h2>Flagged Claims Over Time by Provider</h2>
+      <canvas id="providerTrendChart"></canvas>
+    </div>
+
+  </div>
+
+  <script>
+    new Chart(document.getElementById('providerRiskChart'), {
+      type: 'bar',
+      data: {
+        labels: ['Provider A', 'Provider B', 'Provider C', 'Provider D'],
+        datasets: [{
+          label: '% Claims Flagged',
+          data: [45, 20, 30, 10],
+          backgroundColor: ['#e74c3c', '#f39c12', '#e67e22', '#2ecc71']
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+
+    new Chart(document.getElementById('providerTrendChart'), {
+      type: 'line',
+      data: {
+        labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+        datasets: [
+          {
+            label: 'Provider A',
+            data: [40, 45, 50, 55, 52, 60],
+            borderColor: '#e74c3c',
+            fill: false
+          },
+          {
+            label: 'Provider B',
+            data: [15, 18, 20, 19, 22, 25],
+            borderColor: '#f39c12',
+            fill: false
+          },
+          {
+            label: 'Provider C',
+            data: [20, 25, 28, 30, 32, 35],
+            borderColor: '#8e44ad',
+            fill: false
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: { beginAtZero: true }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,1070 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare Network Collusion Dashboard</title>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5.4.3/dist/echarts.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        .dashboard {
+            display: grid;
+            grid-template-columns: repeat(12, 1fr);
+            grid-template-rows: auto auto 1fr 1fr;
+            gap: 15px;
+            padding: 15px;
+            height: 100vh;
+            box-sizing: border-box;
+        }
+        .header {
+            grid-column: 1 / -1;
+            background-color: #2c3e50;
+            color: white;
+            padding: 15px 20px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .filters {
+            grid-column: 1 / -1;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            background-color: white;
+            padding: 15px;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        .panel {
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+        }
+        .panel-large {
+            grid-column: span 8;
+        }
+        .panel-medium {
+            grid-column: span 6;
+        }
+        .panel-small {
+            grid-column: span 4;
+        }
+        .panel-header {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chart-container {
+            flex: 1;
+            min-height: 300px;
+            position: relative;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        select, button, input {
+            padding: 8px 12px;
+            border-radius: 4px;
+            border: 1px solid #ddd;
+            background-color: #f8f9fa;
+            font-size: 14px;
+        }
+        button {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+        }
+        button:hover {
+            background-color: #2980b9;
+        }
+        button.active {
+            background-color: #2980b9;
+            font-weight: bold;
+        }
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .stat-card {
+            background-color: #f8f9fa;
+            padding: 10px;
+            border-radius: 4px;
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 24px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+        .stat-label {
+            font-size: 12px;
+            color: #7f8c8d;
+        }
+        .tooltip {
+            position: absolute;
+            padding: 8px;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            border-radius: 4px;
+            pointer-events: none;
+            font-size: 12px;
+            max-width: 300px;
+            z-index: 10;
+        }
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .filter-label {
+            font-size: 12px;
+            font-weight: bold;
+            color: #7f8c8d;
+        }
+        .kpi-selector {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 10px;
+        }
+        .kpi-btn {
+            padding: 5px 10px;
+            font-size: 12px;
+        }
+        .matrix-row {
+            display: flex;
+            margin-bottom: 2px;
+        }
+        .matrix-cell {
+            width: 20px;
+            height: 20px;
+            margin-right: 2px;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 2px;
+        }
+        .matrix-header {
+            font-weight: bold;
+            margin-right: 5px;
+            width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <div class="header">
+            <h1>Healthcare Network Collusion Dashboard</h1>
+            <p>Advanced analytics for hospital and physician relationships</p>
+        </div>
+        
+        <div class="filters">
+            <div class="filter-group">
+                <div class="filter-label">Hospital Type</div>
+                <select id="filter-hospital-type" multiple>
+                    <option value="all" selected>All Types</option>
+                    <option value="General">General</option>
+                    <option value="Specialty">Specialty</option>
+                    <option value="University">University</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <div class="filter-label">Doctor Specialty</div>
+                <select id="filter-specialty" multiple>
+                    <option value="all" selected>All Specialties</option>
+                    <option value="Cardiology">Cardiology</option>
+                    <option value="Orthopedics">Orthopedics</option>
+                    <option value="Neurology">Neurology</option>
+                    <option value="Oncology">Oncology</option>
+                    <option value="Pediatrics">Pediatrics</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <div class="filter-label">Suspicious Activity</div>
+                <select id="filter-suspicious">
+                    <option value="all">All Entities</option>
+                    <option value="suspicious">Only Suspicious</option>
+                    <option value="non-suspicious">Only Non-Suspicious</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <div class="filter-label">Date Range</div>
+                <select id="filter-date-range">
+                    <option value="all">All Time</option>
+                    <option value="last_year">Last Year</option>
+                    <option value="last_quarter">Last Quarter</option>
+                    <option value="last_month">Last Month</option>
+                </select>
+            </div>
+            
+            <div class="filter-group">
+                <div class="filter-label">Actions</div>
+                <button id="apply-filters">Apply Filters</button>
+                <button id="reset-filters">Reset Filters</button>
+            </div>
+        </div>
+        
+        <div class="panel panel-large">
+            <div class="panel-header">
+                <span>Hospital-Referring Doctor Relationship Matrix</span>
+                <div class="kpi-selector">
+                    <span style="font-size:12px; margin-right:5px;">Color by:</span>
+                    <button class="kpi-btn active" data-kpi="claims">Claims</button>
+                    <button class="kpi-btn" data-kpi="amount">Billed Amount</button>
+                    <button class="kpi-btn" data-kpi="patients">Patients</button>
+                </div>
+            </div>
+            <div class="chart-container" id="hosp-ref-matrix"></div>
+        </div>
+        
+        <div class="panel panel-medium">
+            <div class="panel-header">
+                <span>Top Referring Relationships</span>
+            </div>
+            <div class="chart-container" id="top-relationships-chart"></div>
+        </div>
+        
+        <div class="panel panel-small">
+            <div class="panel-header">
+                <span>Suspicious Activity Summary</span>
+            </div>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="suspicious-hospitals">0</div>
+                    <div class="stat-label">Hospitals</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="suspicious-doctors">0</div>
+                    <div class="stat-label">Doctors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="suspicious-claims">0</div>
+                    <div class="stat-label">Claims</div>
+                </div>
+            </div>
+            <div class="chart-container" id="suspicious-activity-chart"></div>
+        </div>
+        
+        <div class="panel panel-medium">
+            <div class="panel-header">
+                <span>Referring-Treating Doctor Relationship Matrix</span>
+                <div class="kpi-selector">
+                    <span style="font-size:12px; margin-right:5px;">Color by:</span>
+                    <button class="kpi-btn active" data-kpi="claims">Claims</button>
+                    <button class="kpi-btn" data-kpi="amount">Billed Amount</button>
+                    <button class="kpi-btn" data-kpi="patients">Patients</button>
+                </div>
+            </div>
+            <div class="chart-container" id="ref-treat-matrix"></div>
+        </div>
+        
+        <div class="panel panel-medium">
+            <div class="panel-header">
+                <span>Referral Pattern Analysis</span>
+            </div>
+            <div class="chart-container" id="referral-pattern-chart"></div>
+        </div>
+        
+        <div class="panel panel-small">
+            <div class="panel-header">
+                <span>Network Statistics</span>
+            </div>
+            <div class="stats">
+                <div class="stat-card">
+                    <div class="stat-value" id="hosp-count">0</div>
+                    <div class="stat-label">Hospitals</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="doctor-count">0</div>
+                    <div class="stat-label">Doctors</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="total-connections">0</div>
+                    <div class="stat-label">Connections</div>
+                </div>
+            </div>
+            <div class="chart-container" id="connection-distribution-chart"></div>
+        </div>
+    </div>
+
+    <div class="tooltip" id="tooltip" style="opacity: 0;"></div>
+
+    <script>
+        // Enhanced sample data with more attributes for filtering and analysis
+        const hospitals = [
+            { id: "h1", name: "City General Hospital", type: "General", suspicious: false, beds: 450, region: "North" },
+            { id: "h2", name: "University Medical Center", type: "University", suspicious: false, beds: 720, region: "East" },
+            { id: "h3", name: "Community Hospital", type: "General", suspicious: true, beds: 320, region: "West" },
+            { id: "h4", name: "Regional Medical Center", type: "Specialty", suspicious: false, beds: 600, region: "South" },
+            { id: "h5", name: "Children's Specialty", type: "Specialty", suspicious: false, beds: 280, region: "East" }
+        ];
+
+        const referringDoctors = [
+            { id: "rd1", name: "Dr. Smith", type: "referring", specialty: "Cardiology", suspicious: false, years_practice: 12, region: "North" },
+            { id: "rd2", name: "Dr. Johnson", type: "referring", specialty: "Orthopedics", suspicious: false, years_practice: 8, region: "East" },
+            { id: "rd3", name: "Dr. Williams", type: "referring", specialty: "Neurology", suspicious: true, years_practice: 15, region: "West" },
+            { id: "rd4", name: "Dr. Brown", type: "referring", specialty: "Oncology", suspicious: false, years_practice: 20, region: "South" },
+            { id: "rd5", name: "Dr. Davis", type: "referring", specialty: "Cardiology", suspicious: true, years_practice: 10, region: "East" },
+            { id: "rd6", name: "Dr. Miller", type: "referring", specialty: "Pediatrics", suspicious: false, years_practice: 5, region: "North" },
+            { id: "rd7", name: "Dr. Wilson", type: "referring", specialty: "Cardiology", suspicious: false, years_practice: 18, region: "South" }
+        ];
+
+        const treatingDoctors = [
+            { id: "td1", name: "Dr. Anderson", type: "treating", specialty: "Surgery", suspicious: false, years_practice: 15, region: "North" },
+            { id: "td2", name: "Dr. Thomas", type: "treating", specialty: "Orthopedics", suspicious: false, years_practice: 12, region: "East" },
+            { id: "td3", name: "Dr. Jackson", type: "treating", specialty: "Neurology", suspicious: true, years_practice: 10, region: "West" },
+            { id: "td4", name: "Dr. White", type: "treating", specialty: "Oncology", suspicious: false, years_practice: 22, region: "South" },
+            { id: "td5", name: "Dr. Harris", type: "treating", specialty: "Cardiology", suspicious: false, years_practice: 8, region: "East" },
+            { id: "td6", name: "Dr. Martin", type: "treating", specialty: "Pediatrics", suspicious: false, years_practice: 6, region: "North" },
+            { id: "td7", name: "Dr. Garcia", type: "treating", specialty: "Radiology", suspicious: true, years_practice: 14, region: "West" },
+            { id: "td8", name: "Dr. Lee", type: "treating", specialty: "Cardiology", suspicious: false, years_practice: 17, region: "South" }
+        ];
+
+        // Hospital to Referring Doctor links with enhanced KPI data
+        const hospRefLinks = [
+            { source: "h1", target: "rd1", claims: 15, patients: 32, amount: 45000 },
+            { source: "h1", target: "rd2", claims: 8, patients: 18, amount: 28000 },
+            { source: "h1", target: "rd3", claims: 22, patients: 45, amount: 72000 },
+            { source: "h2", target: "rd1", claims: 12, patients: 25, amount: 38000 },
+            { source: "h2", target: "rd4", claims: 7, patients: 14, amount: 21000 },
+            { source: "h2", target: "rd5", claims: 18, patients: 38, amount: 59000 },
+            { source: "h3", target: "rd3", claims: 30, patients: 62, amount: 95000 },
+            { source: "h3", target: "rd5", claims: 25, patients: 51, amount: 82000 },
+            { source: "h4", target: "rd2", claims: 10, patients: 21, amount: 32000 },
+            { source: "h4", target: "rd6", claims: 5, patients: 11, amount: 16000 },
+            { source: "h5", target: "rd6", claims: 12, patients: 25, amount: 42000 },
+            { source: "h5", target: "rd7", claims: 8, patients: 16, amount: 38000 }
+        ];
+
+        // Referring Doctor to Treating Doctor links with enhanced KPI data
+        const refTreatLinks = [
+            { source: "rd1", target: "td1", claims: 10, patients: 22, amount: 33000 },
+            { source: "rd1", target: "td5", claims: 17, patients: 35, amount: 50000 },
+            { source: "rd2", target: "td2", claims: 18, patients: 39, amount: 60000 },
+            { source: "rd3", target: "td3", claims: 52, patients: 107, amount: 167000 },
+            { source: "rd3", target: "td7", claims: 15, patients: 30, amount: 45000 },
+            { source: "rd4", target: "td4", claims: 7, patients: 14, amount: 21000 },
+            { source: "rd5", target: "td1", claims: 12, patients: 25, amount: 38000 },
+            { source: "rd5", target: "td5", claims: 31, patients: 64, amount: 103000 },
+            { source: "rd6", target: "td6", claims: 5, patients: 11, amount: 16000 },
+            { source: "rd7", target: "td5", claims: 14, patients: 28, amount: 52000 },
+            { source: "rd7", target: "td8", claims: 9, patients: 19, amount: 41000 }
+        ];
+
+        // Color scales
+        const colorScales = {
+            claims: ['#f7fbff', '#deebf7', '#c6dbef', '#9ecae1', '#6baed6', '#4292c6', '#2171b5', '#08519c', '#08306b'],
+            amount: ['#f7fcf5', '#e5f5e0', '#c7e9c0', '#a1d99b', '#74c476', '#41ab5d', '#238b45', '#006d2c', '#00441b'],
+            patients: ['#fff5eb', '#fee6ce', '#fdd0a2', '#fdae6b', '#fd8d3c', '#f16913', '#d94801', '#a63603', '#7f2704']
+        };
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize all visualizations
+            createHospRefMatrix();
+            createRefTreatMatrix();
+            createTopRelationshipsChart();
+            createSuspiciousActivityChart();
+            createReferralPatternChart();
+            createConnectionDistributionChart();
+            
+            // Set up filter controls
+            setupFilterControls();
+            
+            // Update statistics
+            updateStatistics();
+        });
+
+        function setupFilterControls() {
+            // Apply filters button
+            document.getElementById('apply-filters').addEventListener('click', applyFilters);
+            
+            // Reset filters button
+            document.getElementById('reset-filters').addEventListener('click', resetFilters);
+            
+            // KPI selector buttons for matrices
+            document.querySelectorAll('#hosp-ref-matrix .kpi-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('#hosp-ref-matrix .kpi-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    updateHospRefMatrix(this.dataset.kpi);
+                });
+            });
+            
+            document.querySelectorAll('#ref-treat-matrix .kpi-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    document.querySelectorAll('#ref-treat-matrix .kpi-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+                    updateRefTreatMatrix(this.dataset.kpi);
+                });
+            });
+        }
+
+        function createHospRefMatrix() {
+            const container = document.getElementById('hosp-ref-matrix');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            // Prepare data for matrix
+            const hospitalNames = hospitals.map(h => h.name);
+            const doctorNames = referringDoctors.map(d => d.name);
+            
+            // Create matrix data
+            const matrixData = [];
+            hospitals.forEach(hospital => {
+                referringDoctors.forEach(doctor => {
+                    const link = hospRefLinks.find(l => l.source === hospital.id && l.target === doctor.id);
+                    if (link) {
+                        matrixData.push({
+                            hospital: hospital.name,
+                            doctor: doctor.name,
+                            claims: link.claims,
+                            amount: link.amount,
+                            patients: link.patients,
+                            suspicious: hospital.suspicious || doctor.suspicious
+                        });
+                    }
+                });
+            });
+            
+            // Initialize ECharts instance
+            const chart = echarts.init(container);
+            
+            // Prepare series data
+            const seriesData = matrixData.map(item => {
+                return {
+                    value: [hospitalNames.indexOf(item.hospital), doctorNames.indexOf(item.doctor), item.claims],
+                    itemStyle: {
+                        color: getColorForValue(item.claims, 'claims'),
+                        opacity: item.suspicious ? 0.8 : 0.6
+                    }
+                };
+            });
+            
+            // Set chart options
+            const option = {
+                tooltip: {
+                    position: 'top',
+                    formatter: function (params) {
+                        const data = matrixData[params.dataIndex];
+                        return `
+                            <strong>${data.hospital} ↔ ${data.doctor}</strong><br>
+                            Claims: ${data.claims}<br>
+                            Patients: ${data.patients}<br>
+                            Amount: $${data.amount.toLocaleString()}<br>
+                            ${data.suspicious ? '<span style="color:#e74c3c">Suspicious</span>' : ''}
+                        `;
+                    }
+                },
+                grid: {
+                    left: '10%',
+                    right: '10%',
+                    bottom: '15%',
+                    top: '15%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: doctorNames,
+                    splitArea: {
+                        show: true
+                    },
+                    axisLabel: {
+                        interval: 0,
+                        rotate: 45
+                    }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: hospitalNames,
+                    splitArea: {
+                        show: true
+                    }
+                },
+                visualMap: {
+                    min: 0,
+                    max: Math.max(...matrixData.map(d => d.claims)),
+                    calculable: true,
+                    orient: 'horizontal',
+                    left: 'center',
+                    bottom: '0%',
+                    inRange: {
+                        color: colorScales.claims
+                    }
+                },
+                series: [{
+                    name: 'Referrals',
+                    type: 'heatmap',
+                    data: seriesData,
+                    label: {
+                        show: false
+                    },
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                }]
+            };
+            
+            chart.setOption(option);
+            
+            // Store for updates
+            container._chart = chart;
+            container._data = matrixData;
+        }
+
+        function updateHospRefMatrix(kpi) {
+            const container = document.getElementById('hosp-ref-matrix');
+            const chart = container._chart;
+            const matrixData = container._data;
+            
+            // Update series data
+            const seriesData = matrixData.map(item => {
+                return {
+                    value: [item.hospital, item.doctor, item[kpi]],
+                    itemStyle: {
+                        color: getColorForValue(item[kpi], kpi),
+                        opacity: item.suspicious ? 0.8 : 0.6
+                    }
+                };
+            });
+            
+            // Update visual map
+            const option = {
+                series: [{
+                    data: seriesData
+                }],
+                visualMap: {
+                    inRange: {
+                        color: colorScales[kpi]
+                    },
+                    max: Math.max(...matrixData.map(d => d[kpi]))
+                }
+            };
+            
+            chart.setOption(option);
+        }
+
+        function createRefTreatMatrix() {
+            const container = document.getElementById('ref-treat-matrix');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            // Prepare data for matrix
+            const refDoctorNames = referringDoctors.map(d => d.name);
+            const treatDoctorNames = treatingDoctors.map(d => d.name);
+            
+            // Create matrix data
+            const matrixData = [];
+            referringDoctors.forEach(refDoctor => {
+                treatingDoctors.forEach(treatDoctor => {
+                    const link = refTreatLinks.find(l => l.source === refDoctor.id && l.target === treatDoctor.id);
+                    if (link) {
+                        matrixData.push({
+                            refDoctor: refDoctor.name,
+                            treatDoctor: treatDoctor.name,
+                            claims: link.claims,
+                            amount: link.amount,
+                            patients: link.patients,
+                            suspicious: refDoctor.suspicious || treatDoctor.suspicious
+                        });
+                    }
+                });
+            });
+            
+            // Initialize ECharts instance
+            const chart = echarts.init(container);
+            
+            // Prepare series data
+            const seriesData = matrixData.map(item => {
+                return {
+                    value: [refDoctorNames.indexOf(item.refDoctor), treatDoctorNames.indexOf(item.treatDoctor), item.claims],
+                    itemStyle: {
+                        color: getColorForValue(item.claims, 'claims'),
+                        opacity: item.suspicious ? 0.8 : 0.6
+                    }
+                };
+            });
+            
+            // Set chart options
+            const option = {
+                tooltip: {
+                    position: 'top',
+                    formatter: function (params) {
+                        const data = matrixData[params.dataIndex];
+                        return `
+                            <strong>${data.refDoctor} ↔ ${data.treatDoctor}</strong><br>
+                            Claims: ${data.claims}<br>
+                            Patients: ${data.patients}<br>
+                            Amount: $${data.amount.toLocaleString()}<br>
+                            ${data.suspicious ? '<span style="color:#e74c3c">Suspicious</span>' : ''}
+                        `;
+                    }
+                },
+                grid: {
+                    left: '10%',
+                    right: '10%',
+                    bottom: '15%',
+                    top: '15%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'category',
+                    data: treatDoctorNames,
+                    splitArea: {
+                        show: true
+                    },
+                    axisLabel: {
+                        interval: 0,
+                        rotate: 45
+                    }
+                },
+                yAxis: {
+                    type: 'category',
+                    data: refDoctorNames,
+                    splitArea: {
+                        show: true
+                    }
+                },
+                visualMap: {
+                    min: 0,
+                    max: Math.max(...matrixData.map(d => d.claims)),
+                    calculable: true,
+                    orient: 'horizontal',
+                    left: 'center',
+                    bottom: '0%',
+                    inRange: {
+                        color: colorScales.claims
+                    }
+                },
+                series: [{
+                    name: 'Referrals',
+                    type: 'heatmap',
+                    data: seriesData,
+                    label: {
+                        show: false
+                    },
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                }]
+            };
+            
+            chart.setOption(option);
+            
+            // Store for updates
+            container._chart = chart;
+            container._data = matrixData;
+        }
+
+        function updateRefTreatMatrix(kpi) {
+            const container = document.getElementById('ref-treat-matrix');
+            const chart = container._chart;
+            const matrixData = container._data;
+            
+            // Update series data
+            const seriesData = matrixData.map(item => {
+                return {
+                    value: [item.refDoctor, item.treatDoctor, item[kpi]],
+                    itemStyle: {
+                        color: getColorForValue(item[kpi], kpi),
+                        opacity: item.suspicious ? 0.8 : 0.6
+                    }
+                };
+            });
+            
+            // Update visual map
+            const option = {
+                series: [{
+                    data: seriesData
+                }],
+                visualMap: {
+                    inRange: {
+                        color: colorScales[kpi]
+                    },
+                    max: Math.max(...matrixData.map(d => d[kpi]))
+                }
+            };
+            
+            chart.setOption(option);
+        }
+
+        function getColorForValue(value, kpi) {
+            const scale = colorScales[kpi];
+            const max = Math.max(...hospRefLinks.map(d => d[kpi]), ...refTreatLinks.map(d => d[kpi]));
+            const index = Math.min(Math.floor(value / max * (scale.length - 1)), scale.length - 1);
+            return scale[index];
+        }
+
+        function createTopRelationshipsChart() {
+            const container = document.getElementById('top-relationships-chart');
+            
+            // Combine and sort relationships
+            const allRelationships = [
+                ...hospRefLinks.map(l => ({
+                    type: 'Hospital-Referring',
+                    source: hospitals.find(h => h.id === l.source).name,
+                    target: referringDoctors.find(d => d.id === l.target).name,
+                    claims: l.claims,
+                    amount: l.amount,
+                    patients: l.patients,
+                    suspicious: hospitals.find(h => h.id === l.source).suspicious || 
+                               referringDoctors.find(d => d.id === l.target).suspicious
+                })),
+                ...refTreatLinks.map(l => ({
+                    type: 'Referring-Treating',
+                    source: referringDoctors.find(d => d.id === l.source).name,
+                    target: treatingDoctors.find(d => d.id === l.target).name,
+                    claims: l.claims,
+                    amount: l.amount,
+                    patients: l.patients,
+                    suspicious: referringDoctors.find(d => d.id === l.source).suspicious || 
+                               treatingDoctors.find(d => d.id === l.target).suspicious
+                }))
+            ].sort((a, b) => b.claims - a.claims).slice(0, 10);
+            
+            // Initialize ECharts instance
+            const chart = echarts.init(container);
+            
+            // Set chart options
+            const option = {
+                tooltip: {
+                    trigger: 'axis',
+                    axisPointer: {
+                        type: 'shadow'
+                    },
+                    formatter: function(params) {
+                        const data = params[0].data;
+                        return `
+                            <strong>${data.source} ↔ ${data.target}</strong><br>
+                            Type: ${data.type}<br>
+                            Claims: ${data.claims}<br>
+                            Patients: ${data.patients}<br>
+                            Amount: $${data.amount.toLocaleString()}<br>
+                            ${data.suspicious ? '<span style="color:#e74c3c">Suspicious</span>' : ''}
+                        `;
+                    }
+                },
+                grid: {
+                    left: '3%',
+                    right: '4%',
+                    bottom: '3%',
+                    containLabel: true
+                },
+                xAxis: {
+                    type: 'value',
+                    name: 'Number of Claims'
+                },
+                yAxis: {
+                    type: 'category',
+                    data: allRelationships.map(r => `${r.source} ↔ ${r.target}`),
+                    axisLabel: {
+                        interval: 0,
+                        rotate: 30
+                    }
+                },
+                series: [{
+                    name: 'Claims',
+                    type: 'bar',
+                    data: allRelationships.map(r => ({
+                        value: r.claims,
+                        itemStyle: {
+                            color: r.suspicious ? '#e74c3c' : '#3498db'
+                        },
+                        data: r
+                    })),
+                    label: {
+                        show: true,
+                        position: 'right'
+                    }
+                }]
+            };
+            
+            chart.setOption(option);
+        }
+
+        function createSuspiciousActivityChart() {
+            const container = document.getElementById('suspicious-activity-chart');
+            
+            // Calculate suspicious activity
+            const suspiciousHospitals = hospitals.filter(h => h.suspicious).length;
+            const suspiciousDoctors = [...referringDoctors, ...treatingDoctors].filter(d => d.suspicious).length;
+            const suspiciousClaims = [
+                ...hospRefLinks.filter(l => 
+                    hospitals.find(h => h.id === l.source).suspicious || 
+                    referringDoctors.find(d => d.id === l.target).suspicious
+                ),
+                ...refTreatLinks.filter(l => 
+                    referringDoctors.find(d => d.id === l.source).suspicious || 
+                    treatingDoctors.find(d => d.id === l.target).suspicious
+                )
+            ].reduce((sum, l) => sum + l.claims, 0);
+            
+            // Update summary stats
+            document.getElementById('suspicious-hospitals').textContent = suspiciousHospitals;
+            document.getElementById('suspicious-doctors').textContent = suspiciousDoctors;
+            document.getElementById('suspicious-claims').textContent = suspiciousClaims;
+            
+            // Prepare data for chart
+            const data = [
+                { value: suspiciousHospitals, name: 'Hospitals' },
+                { value: suspiciousDoctors, name: 'Doctors' },
+                { value: suspiciousClaims, name: 'Claims' }
+            ];
+            
+            // Initialize ECharts instance
+            const chart = echarts.init(container);
+            
+            // Set chart options
+            const option = {
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{a} <br/>{b}: {c} ({d}%)'
+                },
+                series: [{
+                    name: 'Suspicious Activity',
+                    type: 'pie',
+                    radius: ['50%', '70%'],
+                    avoidLabelOverlap: false,
+                    itemStyle: {
+                        borderRadius: 10,
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    },
+                    label: {
+                        show: false,
+                        position: 'center'
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: '18',
+                            fontWeight: 'bold'
+                        }
+                    },
+                    labelLine: {
+                        show: false
+                    },
+                    data: data
+                }]
+            };
+            
+            chart.setOption(option);
+        }
+
+        function createReferralPatternChart() {
+            const container = document.getElementById('referral-pattern-chart');
+            
+            // Group referrals by specialty
+            const specialtyReferrals = {};
+            
+            hospRefLinks.forEach(link => {
+                const doctor = referringDoctors.find(d => d.id === link.target);
+                if (!specialtyReferrals[doctor.specialty]) {
+                    specialtyReferrals[doctor.specialty] = 0;
+                }
+                specialtyReferrals[doctor.specialty] += link.claims;
+            });
+            
+            refTreatLinks.forEach(link => {
+                const doctor = treatingDoctors.find(d => d.id === link.target);
+                if (!specialtyReferrals[doctor.specialty]) {
+                    specialtyReferrals[doctor.specialty] = 0;
+                }
+                specialtyReferrals[doctor.specialty] += link.claims;
+            });
+            
+            // Prepare data for chart
+            const data = Object.entries(specialtyReferrals)
+                .sort((a, b) => b[1] - a[1])
+                .map(([specialty, count]) => ({
+                    name: specialty,
+                    value: count
+                }));
+            
+            // Initialize ECharts instance
+            const chart = echarts.init(container);
+            
+            // Set chart options
+            const option = {
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{a} <br/>{b}: {c} ({d}%)'
+                },
+                legend: {
+                    orient: 'vertical',
+                    left: 10,
+                    data: data.map(d => d.name)
+                },
+                series: [{
+                    name: 'Referrals by Specialty',
+                    type: 'pie',
+                    radius: ['50%', '70%'],
+                    center: ['60%', '50%'],
+                    avoidLabelOverlap: false,
+                    itemStyle: {
+                        borderRadius: 10,
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    },
+                    label: {
+                        show: false,
+                        position: 'center'
+                    },
+                    emphasis: {
+                        label: {
+                            show: true,
+                            fontSize: '18',
+                            fontWeight: 'bold'
+                        }
+                    },
+                    labelLine: {
+                        show: false
+                    },
+                    data: data
+                }]
+            };
+            
+            chart.setOption(option);
+        }
+
+        function createConnectionDistributionChart() {
+            const container = document.getElementById('connection-distribution-chart');
+            
+            // Calculate connection distribution
+            const hospRefConnections = hospRefLinks.length;
+            const refTreatConnections = refTreatLinks.length;
+            
+            // Update summary stats
+            document.getElementById('hosp-count').textContent = hospitals.length;
+            document.getElementById('doctor-count').textContent = referringDoctors.length + treatingDoctors.length;
+            document.getElementById('total-connections').textContent = hospRefConnections + refTreatConnections;
+            
+            // Prepare data for chart
+            const data = [
+                { value: hospRefConnections, name: 'Hospital-Referring' },
+                { value: refTreatConnections, name: 'Referring-Treating' }
+            ];
+            
+            // Initialize ECharts instance
+            const chart = echarts.init(container);
+            
+            // Set chart options
+            const option = {
+                tooltip: {
+                    trigger: 'item',
+                    formatter: '{a} <br/>{b}: {c} ({d}%)'
+                },
+                series: [{
+                    name: 'Connection Distribution',
+                    type: 'pie',
+                    radius: '70%',
+                    center: ['50%', '50%'],
+                    data: data,
+                    itemStyle: {
+                        borderRadius: 5,
+                        borderColor: '#fff',
+                        borderWidth: 2
+                    },
+                    label: {
+                        show: true,
+                        formatter: '{b}: {c}'
+                    },
+                    emphasis: {
+                        itemStyle: {
+                            shadowBlur: 10,
+                            shadowOffsetX: 0,
+                            shadowColor: 'rgba(0, 0, 0, 0.5)'
+                        }
+                    }
+                }]
+            };
+            
+            chart.setOption(option);
+        }
+
+        function applyFilters() {
+            // Get filter values
+            const hospitalTypes = Array.from(document.getElementById('filter-hospital-type').selectedOptions)
+                .map(opt => opt.value);
+            const specialties = Array.from(document.getElementById('filter-specialty').selectedOptions)
+                .map(opt => opt.value);
+            const suspiciousFilter = document.getElementById('filter-suspicious').value;
+            const dateRange = document.getElementById('filter-date-range').value;
+            
+            // For now, just log the filters - in a real app, this would filter the data
+            console.log('Applying filters:', {
+                hospitalTypes,
+                specialties,
+                suspiciousFilter,
+                dateRange
+            });
+            
+            // In a real implementation, we would:
+            // 1. Filter the underlying data
+            // 2. Update all visualizations with the filtered data
+            // 3. Re-render the charts
+            
+            // For this demo, we'll just show an alert
+            alert('Filters applied! In a real implementation, this would update all visualizations.');
+        }
+
+        function resetFilters() {
+            // Reset all filter controls
+            document.getElementById('filter-hospital-type').selectedIndex = 0;
+            document.getElementById('filter-specialty').selectedIndex = 0;
+            document.getElementById('filter-suspicious').selectedIndex = 0;
+            document.getElementById('filter-date-range').selectedIndex = 0;
+            
+            // In a real implementation, we would:
+            // 1. Reset the underlying data
+            // 2. Update all visualizations with the original data
+            // 3. Re-render the charts
+            
+            // For this demo, we'll just show an alert
+            alert('Filters reset! In a real implementation, this would reset all visualizations.');
+        }
+
+        function updateStatistics() {
+            // Already handled in the individual chart creation functions
+        }
+    </script>
+</body>
+</html>

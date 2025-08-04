@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Collusion Detection Dashboard</title>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #f4f4f4;
+    }
+    #controls {
+      background: #007b8f;
+      padding: 10px;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    #graph {
+      width: 100%;
+      height: 700px;
+      background: white;
+      overflow: hidden;
+    }
+    .tooltip {
+      position: absolute;
+      background: rgba(0,0,0,0.75);
+      color: #fff;
+      padding: 6px;
+      border-radius: 4px;
+      pointer-events: none;
+      font-size: 12px;
+    }
+    button, select {
+      padding: 5px 10px;
+      font-size: 14px;
+      margin-left: 10px;
+      border: none;
+      border-radius: 4px;
+    }
+    button {
+      background-color: #f9f9f9;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #e0e0e0;
+    }
+  </style>
+</head>
+<body>
+
+<div id="controls">
+  <div>
+    <label for="groupSelect">Filter by Cluster Group:</label>
+    <select id="groupSelect">
+      <option value="all">All</option>
+    </select>
+  </div>
+  <button id="exportBtn">Export as PNG</button>
+</div>
+
+<div id="graph"></div>
+<div class="tooltip" id="tooltip" style="opacity:0;"></div>
+
+<script>
+const tooltip = d3.select("#tooltip");
+const width = document.getElementById("graph").clientWidth;
+const height = 700;
+
+const svg = d3.select("#graph").append("svg")
+  .attr("width", width)
+  .attr("height", height);
+
+const container = svg.append("g");
+
+const zoom = d3.zoom()
+  .scaleExtent([0.1, 10])
+  .on("zoom", (event) => container.attr("transform", event.transform));
+
+svg.call(zoom);
+
+// --- Generate Sample Nodes and Links ---
+const nodes = [], links = [];
+const numDoctors = 100, numHospitals = 20;
+const groups = Array.from({length: 6}, (_, i) => `G${i + 1}`);
+
+// Populate select menu
+groups.forEach(g => {
+  d3.select("#groupSelect").append("option").attr("value", g).text(g);
+});
+
+for (let i = 1; i <= numHospitals; i++) {
+  nodes.push({
+    id: `H${i}`,
+    group: groups[i % groups.length],
+    label: `🏥 Hospital ${i}`,
+    type: "hospital"
+  });
+}
+for (let i = 1; i <= numDoctors; i++) {
+  nodes.push({
+    id: `D${i}`,
+    group: groups[i % groups.length],
+    label: `🧑‍⚕️ Dr. ${i}`,
+    type: "doctor"
+  });
+
+  const linkedHospitals = Array.from({length: Math.floor(Math.random() * 3) + 1}, () =>
+    `H${Math.floor(Math.random() * numHospitals) + 1}`
+  );
+
+  linkedHospitals.forEach(hid => {
+    links.push({
+      source: `D${i}`,
+      target: hid,
+      volume: Math.floor(Math.random() * 100 + 1)
+    });
+  });
+}
+
+// --- D3 Graph Drawing ---
+let link = container.append("g")
+  .attr("stroke", "#aaa")
+  .selectAll("line")
+  .data(links)
+  .join("line")
+  .attr("stroke-width", d => Math.sqrt(d.volume));
+
+let node = container.append("g")
+  .selectAll("circle")
+  .data(nodes)
+  .join("circle")
+  .attr("r", 10)
+  .attr("fill", d => d.type === "doctor" ? "#42a5f5" : "#ff7043")
+  .on("mouseover", function(event, d) {
+    tooltip.transition().duration(200).style("opacity", .9);
+    tooltip.html(`${d.label}<br/>Group: ${d.group}`)
+      .style("left", (event.pageX + 10) + "px")
+      .style("top", (event.pageY - 28) + "px");
+
+    link.attr("stroke", l =>
+      l.source.id === d.id || l.target.id === d.id ? "#f00" : "#999"
+    ).attr("stroke-width", l =>
+      l.source.id === d.id || l.target.id === d.id ? Math.sqrt(l.volume) + 2 : Math.sqrt(l.volume)
+    );
+  })
+  .on("mouseout", () => {
+    tooltip.transition().duration(500).style("opacity", 0);
+    link.attr("stroke", "#aaa").attr("stroke-width", d => Math.sqrt(d.volume));
+  })
+  .call(d3.drag()
+    .on("start", dragStart)
+    .on("drag", dragging)
+    .on("end", dragEnd));
+
+let label = container.append("g")
+  .selectAll("text")
+  .data(nodes)
+  .join("text")
+  .text(d => d.label)
+  .attr("font-size", 10)
+  .attr("dx", 12)
+  .attr("dy", ".35em");
+
+const simulation = d3.forceSimulation(nodes)
+  .force("link", d3.forceLink(links).id(d => d.id).distance(50))
+  .force("charge", d3.forceManyBody().strength(-100))
+  .force("center", d3.forceCenter(width / 2, height / 2));
+
+simulation.on("tick", () => {
+  link
+    .attr("x1", d => d.source.x)
+    .attr("y1", d => d.source.y)
+    .attr("x2", d => d.target.x)
+    .attr("y2", d => d.target.y);
+
+  node
+    .attr("cx", d => d.x)
+    .attr("cy", d => d.y);
+
+  label
+    .attr("x", d => d.x)
+    .attr("y", d => d.y);
+});
+
+function dragStart(event, d) {
+  if (!event.active) simulation.alphaTarget(0.3).restart();
+  d.fx = d.x;
+  d.fy = d.y;
+}
+function dragging(event, d) {
+  d.fx = event.x;
+  d.fy = event.y;
+}
+function dragEnd(event, d) {
+  if (!event.active) simulation.alphaTarget(0);
+  d.fx = null;
+  d.fy = null;
+}
+
+// --- Group Filter ---
+document.getElementById("groupSelect").addEventListener("change", function() {
+  const selected = this.value;
+  node.style("display", d => (selected === "all" || d.group === selected) ? "inline" : "none");
+  label.style("display", d => (selected === "all" || d.group === selected) ? "inline" : "none");
+  link.style("display", l =>
+    (selected === "all" || (l.source.group === selected && l.target.group === selected)) ? "inline" : "none"
+  );
+});
+
+// --- Export as PNG ---
+document.getElementById("exportBtn").addEventListener("click", () => {
+  const svgNode = svg.node();
+  const serializer = new XMLSerializer();
+  const svgString = serializer.serializeToString(svgNode);
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext("2d");
+  const img = new Image();
+  img.onload = () => {
+    ctx.drawImage(img, 0, 0);
+    const link = document.createElement("a");
+    link.download = "collusion_dashboard.png";
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  };
+  img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgString)));
+});
+</script>
+
+</body>
+</html>

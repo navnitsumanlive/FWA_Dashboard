@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>FWA Dashboard - Advanced</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      margin: 0;
+      background: #f7f9fc;
+      color: #2c3e50;
+    }
+    header {
+      background: #3498db;
+      color: white;
+      padding: 30px;
+      text-align: center;
+      font-size: 1.5em;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    }
+    .filters {
+      display: flex;
+      gap: 15px;
+      padding: 20px;
+      justify-content: center;
+    }
+    .dashboard {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 20px;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 15px;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+      padding: 20px;
+      transition: transform 0.3s;
+    }
+    .card:hover {
+      transform: translateY(-5px);
+    }
+    .card h3 {
+      margin-top: 0;
+      color: #2980b9;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    svg {
+      width: 100%;
+      height: 320px;
+    }
+    .narrative {
+      margin: 40px;
+      padding: 20px;
+      background: #ecf0f1;
+      border-left: 5px solid #2980b9;
+      font-size: 1.1em;
+      line-height: 1.6em;
+    }
+  </style>
+  <script src="https://d3js.org/d3.v7.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>🚨 Healthcare FWA Analytics Dashboard</h1>
+    <p>Interactive and Animated View of Model Intelligence & Claim Behavior</p>
+  </header>
+
+  <div class="filters">
+    <label>Year:
+      <select id="yearFilter">
+        <option value="All">All</option>
+        <option value="2023">2023</option>
+        <option value="2024">2024</option>
+        <option value="2025">2025</option>
+      </select>
+    </label>
+    <label>Claim Type:
+      <select id="claimTypeFilter">
+        <option value="All">All</option>
+        <option value="IPD">IPD</option>
+        <option value="OPD">OPD</option>
+      </select>
+    </label>
+  </div>
+
+  <div class="dashboard">
+    <div class="card">
+      <h3>💲 Savings by Rule Category</h3>
+      <svg id="savingsChart"></svg>
+    </div>
+    <div class="card">
+      <h3>🧮 Claim Type Distribution Over Time</h3>
+      <svg id="claimTypeChart"></svg>
+    </div>
+    <div class="card">
+      <h3>🧑‍⚕️ Provider Profile Drill-down</h3>
+      <svg id="providerProfileChart"></svg>
+    </div>
+    <div class="card">
+      <h3>📌 Top High-Risk Providers</h3>
+      <svg id="highRiskProvidersChart"></svg>
+    </div>
+  </div>
+
+  <div class="narrative">
+    <strong>Story Mode:</strong>
+    <p>Over the past three years, claim patterns indicate a significant rise in flagged OPD claims with "Ineligible" and "Duplicate" rules contributing to the highest savings. The simulation model showcases growing divergence between assessor and model verdicts, especially in 2024, demanding review of threshold logic. Notably, risk scores are spiking in metropolitan zones indicating potential collusion or fraud rings. Our drill-down view highlights specific providers and diagnosis codes requiring manual audit.</p>
+  </div>
+
+  <script>
+    const savingsData = [
+      { rule: "High Cost", amount: 120000 },
+      { rule: "Duplicate", amount: 90000 },
+      { rule: "Ineligible", amount: 70000 },
+      { rule: "Time Window", amount: 50000 }
+    ];
+
+    const providerData = [
+      { name: "Dr. A", score: 85 },
+      { name: "Dr. B", score: 65 },
+      { name: "Dr. C", score: 95 },
+      { name: "Dr. D", score: 72 },
+      { name: "Dr. E", score: 91 }
+    ];
+
+    const highRiskData = [
+      { provider: "Hosp. X", score: 92 },
+      { provider: "Hosp. Y", score: 88 },
+      { provider: "Hosp. Z", score: 95 }
+    ];
+
+    function renderSavingsChart() {
+      const svg = d3.select("#savingsChart");
+      svg.selectAll("*").remove();
+      const x = d3.scaleLinear().domain([0, d3.max(savingsData, d => d.amount)]).range([0, 350]);
+      const y = d3.scaleBand().domain(savingsData.map(d => d.rule)).range([0, 300]).padding(0.3);
+      svg.selectAll("rect")
+        .data(savingsData)
+        .enter().append("rect")
+        .attr("y", d => y(d.rule))
+        .attr("width", 0)
+        .attr("height", y.bandwidth())
+        .attr("fill", "#1abc9c")
+        .transition().duration(800)
+        .attr("width", d => x(d.amount));
+    }
+
+    function renderClaimTypeChart() {
+      const svg = d3.select("#claimTypeChart");
+      svg.selectAll("*").remove();
+      const data = [
+        { year: "2023", IPD: 40, OPD: 60 },
+        { year: "2024", IPD: 70, OPD: 90 },
+        { year: "2025", IPD: 100, OPD: 130 }
+      ];
+      const x = d3.scaleBand().domain(data.map(d => d.year)).range([40, 400]).padding(0.3);
+      const y = d3.scaleLinear().domain([0, 150]).range([300, 0]);
+      svg.selectAll("rect.ipd")
+        .data(data).enter().append("rect")
+        .attr("class", "ipd")
+        .attr("x", d => x(d.year))
+        .attr("y", d => y(d.IPD))
+        .attr("width", x.bandwidth() / 2)
+        .attr("height", d => 300 - y(d.IPD))
+        .attr("fill", "#2980b9");
+
+      svg.selectAll("rect.opd")
+        .data(data).enter().append("rect")
+        .attr("class", "opd")
+        .attr("x", d => x(d.year) + x.bandwidth() / 2)
+        .attr("y", d => y(d.OPD))
+        .attr("width", x.bandwidth() / 2)
+        .attr("height", d => 300 - y(d.OPD))
+        .attr("fill", "#8e44ad");
+    }
+
+    function renderProviderChart() {
+      const svg = d3.select("#providerProfileChart");
+      svg.selectAll("*").remove();
+      const x = d3.scaleLinear().domain([0, 100]).range([0, 350]);
+      const y = d3.scaleBand().domain(providerData.map(d => d.name)).range([0, 300]).padding(0.3);
+      svg.selectAll("rect")
+        .data(providerData)
+        .enter().append("rect")
+        .attr("y", d => y(d.name))
+        .attr("width", 0)
+        .attr("height", y.bandwidth())
+        .attr("fill", "#e74c3c")
+        .transition().duration(800)
+        .attr("width", d => x(d.score));
+    }
+
+    function renderHighRiskChart() {
+      const svg = d3.select("#highRiskProvidersChart");
+      svg.selectAll("*").remove();
+      const x = d3.scaleBand().domain(highRiskData.map(d => d.provider)).range([0, 400]).padding(0.4);
+      const y = d3.scaleLinear().domain([0, 100]).range([300, 0]);
+      svg.selectAll("rect")
+        .data(highRiskData)
+        .enter().append("rect")
+        .attr("x", d => x(d.provider))
+        .attr("y", d => y(d.score))
+        .attr("width", x.bandwidth())
+        .attr("height", d => 300 - y(d.score))
+        .attr("fill", "#f39c12");
+    }
+
+    function applyFilters() {
+      renderSavingsChart();
+      renderClaimTypeChart();
+      renderProviderChart();
+      renderHighRiskChart();
+    }
+
+    document.getElementById("yearFilter").addEventListener("change", applyFilters);
+    document.getElementById("claimTypeFilter").addEventListener("change", applyFilters);
+
+    applyFilters();
+  </script>
+</body>
+</html>
