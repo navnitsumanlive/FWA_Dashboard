@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Healthcare Claim Rule Engine Dashboard — D3 Story</title>
+  <script src="https://unpkg.com/d3@7"></script>
+  <script src="https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+  <style>
+    :root{--bg:#0f172a;--panel:#111827;--card:#0b1220;--ink:#e5e7eb;--muted:#94a3b8;--accent:#60a5fa;--ok:#22c55e;--warn:#f59e0b;--bad:#ef4444}
+    *{box-sizing:border-box}
+    body{margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial; background:var(--bg);color:var(--ink)}
+    header{padding:12px 18px;background:linear-gradient(90deg,#071029,#0b1220);display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #111827}
+    header h1{margin:0;font-size:16px}
+    .controls{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+    select,input[type=date],button{background:#071226;border:1px solid #1f2937;color:var(--ink);padding:8px;border-radius:8px}
+    .tabs{display:flex;background:#071226;border-bottom:1px solid #111827}
+    .tab{padding:10px 14px;cursor:pointer;color:var(--muted)}
+    .tab.active{color:var(--ink);border-bottom:3px solid var(--accent);background:#07142a}
+    .page{display:none;padding:14px}
+    .page.active{display:block}
+    .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:12px 0}
+    .kpi{background:var(--card);padding:12px;border-radius:12px;border:1px solid #12202b}
+    .kpi .label{color:var(--muted);font-size:12px}
+    .kpi .value{font-size:20px;font-weight:700;margin-top:6px}
+    .row{display:grid;grid-template-columns:1.1fr 1fr;gap:12px}
+    .panel{background:var(--panel);padding:12px;border-radius:12px;border:1px solid #111827}
+    table{width:100%;border-collapse:collapse;font-size:13px}
+    th,td{padding:8px;border-bottom:1px solid #0f172a;text-align:left}
+    .legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+    .swatch{width:12px;height:12px;border-radius:3px;display:inline-block}
+    .tooltip{position:fixed;pointer-events:none;background:#071226;border:1px solid #17303f;color:var(--ink);padding:8px;border-radius:8px;font-size:13px;opacity:0;transition:opacity .12s}
+    .story-panel{background:#071226;padding:10px;border-radius:8px;border:1px solid #12202b;margin-top:10px}
+    .controls .small{padding:6px 8px;font-size:13px}
+    @media(max-width:1100px){.kpis{grid-template-columns:repeat(3,1fr)}.row{grid-template-columns:1fr}}
+    @media(max-width:700px){.kpis{grid-template-columns:repeat(2,1fr)}}
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Healthcare Claim Rule Engine — Interactive Story</h1>
+    <div class="controls">
+      <label class="hint">From</label>
+      <input id="fromDate" type="date" />
+      <label class="hint">To</label>
+      <input id="toDate" type="date" />
+      <select id="hospitalFilter"><option value="ALL">All Hospitals</option></select>
+      <select id="decisionFilter"><option value="ALL">All Decisions</option><option>Approved</option><option>Declined</option><option>Flag</option><option>Error</option></select>
+      <button id="resetFilters" class="small">Reset</button>
+      <button id="exportClaims" class="small">Export Claims</button>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-page="summary">Overview</div>
+    <div class="tab" data-page="rules">Rule Engine</div>
+    <div class="tab" data-page="comparison">Assessor vs Engine</div>
+    <div class="tab" data-page="simulation">Simulation</div>
+  </div>
+
+  <!-- Overview -->
+  <section id="summary" class="page active">
+    <div id="story" class="story-panel"></div>
+    <div class="kpis" id="kpiRow"></div>
+
+    <div class="row">
+      <div class="panel">
+        <h3 style="margin-top:4px">Claim Trends</h3>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px"><label class="hint">Mode:</label>
+          <select id="modeToggle"><option value="volume">Volume</option><option value="amount">Billed Amount</option></select>
+        </div>
+        <div id="trendChart"></div>
+      </div>
+      <div class="panel">
+        <h3 style="margin-top:4px">Billed Distribution</h3>
+        <div id="billedDist"></div>
+      </div>
+    </div>
+
+    <div class="row" style="margin-top:12px">
+      <div class="panel">
+        <h3>Risk Bubble — Billed vs Flags</h3>
+        <div id="bubbleChart"></div>
+        <div class="hint">Bubble size = billed amount, X = flags count, Y = hospital cluster</div>
+      </div>
+      <div class="panel">
+        <h3>Hospital Flag Rate (Top)</h3>
+        <div id="hospitalHeat"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RULES -->
+  <section id="rules" class="page">
+    <div class="row">
+      <div class="panel">
+        <h3>Top Rules by Flags</h3>
+        <div id="ruleFlagChart"></div>
+      </div>
+      <div class="panel">
+        <h3>Rule Outcome Mix & Treemap</h3>
+        <div id="ruleOutcomeChart"></div>
+        <div id="ruleTreemap" style="margin-top:10px"></div>
+      </div>
+    </div>
+    <div class="panel" style="margin-top:12px">
+      <h3>Hospital Summary</h3>
+      <div style="overflow:auto;max-height:360px"><table id="hospitalTable"><thead><tr><th>Hospital</th><th>Total</th><th>Flagged</th><th>Approved</th><th>Declined</th><th>Errors</th><th>Flag%</th><th>Billed</th><th>Potential Saving</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </section>
+
+  <!-- COMPARISON -->
+  <section id="comparison" class="page">
+    <div class="row">
+      <div class="panel">
+        <h3>Decision Flow (Sankey)</h3>
+        <div id="sankey"></div>
+      </div>
+      <div class="panel">
+        <h3>Confusion Matrix</h3>
+        <div id="confusionMatrix"></div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div class="panel">
+        <h3>Monthly Savings</h3>
+        <div id="savingsChart"></div>
+      </div>
+      <div class="panel">
+        <h3>Actionable Insights</h3>
+        <div id="insights"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- SIMULATION -->
+  <section id="simulation" class="page">
+    <div class="panel">
+      <h3>What-if: Rule Sensitivity Simulation</h3>
+      <div style="display:flex;gap:12px;align-items:center;margin-bottom:8px">
+        <label class="hint">Flag threshold (min flags)</label>
+        <input id="simFlags" type="range" min="0" max="5" value="1" />
+        <span id="simFlagsVal">1</span>
+        <label class="hint">Billed amount > </label>
+        <input id="simBilled" type="range" min="0" max="200000" step="1000" value="10000" />
+        <span id="simBilledVal">10000</span>
+        <button id="runSim">Run</button>
+      </div>
+      <div id="simResult"></div>
+    </div>
+  </section>
+
+  <div class="tooltip" id="tooltip"></div>
+
+  <script>
+    /* ========= Mock data (replace with real) ========= */
+    const rnd = (min,max)=> Math.floor(Math.random()*(max-min+1))+min;
+    const sample = arr => arr[Math.floor(Math.random()*arr.length)];
+    const hospitals = Array.from({length:28},(_,i)=>`Hospital ${String.fromCharCode(65 + (i%26))}${i}`);
+    const rules = ['High Amount','Duplicate','Invalid Specialty','Blacklist','Excess LOS','Unbundling','Upcoding','Geo Mismatch','Readmission','Missing Docs'];
+    const statuses = ['Approved','Declined','Flag','Error'];
+    const start = new Date(); start.setMonth(start.getMonth()-5);
+    const dates = Array.from({length:180},(_,i)=> new Date(start.getTime()+i*24*3600*1000));
+
+    const claims = Array.from({length:20000},(_,id)=>{
+      const hospital = sample(hospitals);
+      const billed = Math.round(Math.exp(d3.randomNormal(9,0.8)()));
+      const engine = Math.random()<0.02? 'Error' : (Math.random()<0.28? 'Flag': (Math.random()<0.6? 'Approved':'Declined'));
+      const assessor = Math.random()<0.8? engine: sample(statuses);
+      const flagsCount = engine==='Flag'? rnd(1,4) : Math.random()<0.08? rnd(2,4): rnd(0,1);
+      const date = sample(dates);
+      const potentialSaving = (engine==='Declined'? billed*0.5: engine==='Flag'? billed*0.2:0);
+      const rule = sample(rules);
+      return {id,date,hospital,billed,engine_decision:engine,assessor_decision:assessor,flags_count:flagsCount,rule,potential_saving:Math.round(potentialSaving),error: engine==='Error'};
+    });
+
+    /* ====== state & UI wiring ====== */
+    const state = {hospital:'ALL',decision:'ALL',from:d3.min(claims,d=>d.date),to:d3.max(claims,d=>d.date)};
+    const hospitalSel = document.getElementById('hospitalFilter'); hospitals.forEach(h=>{const o=document.createElement('option');o.value=h;o.textContent=h;hospitalSel.appendChild(o)});
+    const fmtDate = d3.timeFormat('%Y-%m-%d'); document.getElementById('fromDate').value = fmtDate(state.from); document.getElementById('toDate').value = fmtDate(state.to);
+    hospitalSel.addEventListener('change',e=>{state.hospital=e.target.value; renderAll()}); document.getElementById('decisionFilter').addEventListener('change', e=>{state.decision=e.target.value; renderAll()});
+    document.getElementById('fromDate').addEventListener('change', e=>{state.from=new Date(e.target.value); renderAll()}); document.getElementById('toDate').addEventListener('change', e=>{state.to=new Date(e.target.value); renderAll()});
+    document.getElementById('resetFilters').addEventListener('click', ()=>{state.hospital='ALL';state.decision='ALL';hospitalSel.value='ALL';document.getElementById('decisionFilter').value='ALL';document.getElementById('fromDate').value=fmtDate(d3.min(claims,d=>d.date));document.getElementById('toDate').value=fmtDate(d3.max(claims,d=>d.date));state.from=d3.min(claims,d=>d.date);state.to=d3.max(claims,d=>d.date);renderAll()});
+
+    document.querySelectorAll('.tab').forEach(t=> t.addEventListener('click', e=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.page').forEach(x=>x.classList.remove('active')); e.currentTarget.classList.add('active'); document.getElementById(e.currentTarget.dataset.page).classList.add('active'); setTimeout(renderAll,80);}));
+
+    document.getElementById('exportClaims').addEventListener('click', ()=>{const rows = filtered().map(d=>({id:d.id,date:fmtDate(d.date),hospital:d.hospital,billed:d.billed,engine:d.engine_decision,assessor:d.assessor_decision,flags:d.flags_count,rule:d.rule,potential_saving:d.potential_saving,error:d.error})); downloadCSV(rows,'claims_export.csv')});
+
+    function downloadCSV(rows,filename){ if(!rows.length) return alert('No rows to export'); const esc=v=>'"'+String(v).replaceAll('"','""')+'"'; const headers=Object.keys(rows[0]); const lines=[headers.join(',')].concat(rows.map(r=>headers.map(h=>esc(r[h]||'')).join(','))); const blob=new Blob([lines.join('
+')],{type:'text/csv'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename; a.click(); URL.revokeObjectURL(a.href); }
+
+    /* ===== tooltip ===== */
+    const tip = d3.select('#tooltip'); function showTip(html,x,y){ tip.html(html).style('left',(x+12)+'px').style('top',(y+12)+'px').style('opacity',1)} function hideTip(){ tip.style('opacity',0) }
+
+    /* ===== filtered data ===== */
+    function filtered(){ return claims.filter(d=> (state.hospital==='ALL' || d.hospital===state.hospital) && (state.decision==='ALL' || d.engine_decision===state.decision) && d.date>=state.from && d.date<=state.to ); }
+
+    /* ===== KPIs & story ===== */
+    function renderKPIs(data){ const total=data.length; const errors=data.filter(d=>d.error).length; const approved=data.filter(d=>d.engine_decision==='Approved').length; const declined=data.filter(d=>d.engine_decision==='Declined').length; const flagged=data.filter(d=>d.engine_decision==='Flag').length; const billed=d3.sum(data,d=>d.billed); const saving=d3.sum(data,d=>d.potential_saving);
+      const kpis = [{label:'Processed',value:formatNum(total)},{label:'Errors',value:formatNum(errors)},{label:'Approved',value:formatNum(approved)},{label:'Declined',value:formatNum(declined)},{label:'Flagged',value:formatNum(flagged)}];
+      const row = d3.select('#kpiRow').selectAll('.kpi').data(kpis, d=>d.label);
+      const enter = row.enter().append('div').attr('class','kpi'); enter.append('div').attr('class','label'); enter.append('div').attr('class','value'); row.merge(enter).select('.label').text(d=>d.label); row.merge(enter).select('.value').text(d=>d.value);
+      d3.select('#story').html(`<strong>Snapshot:</strong> ${formatNum(total)} claims between ${fmtDate(state.from)} and ${fmtDate(state.to)}. Engine flagged ${formatNum(flagged)} claims (estimated savings ${formatMoney(saving)}). Errors: ${formatNum(errors)}.`);
+    }
+
+    function formatNum(n){return d3.format(',')(Math.round(n));} function formatMoney(n){return '$'+d3.format(',')(Math.round(n));}
+
+    /* ===== Trend (stacked by month) ===== */
+    const statusColors = new Map([['Approved','#22c55e'],['Declined','#ef4444'],['Flag','#f59e0b'],['Error','#64748b']]);
+    function stackedByMonth(data,valueAccessor){ const mfmt=d3.timeFormat('%Y-%m'); const groups=d3.rollups(data,v=>({Approved:v.filter(d=>d.engine_decision==='Approved').map(valueAccessor).reduce((a,b)=>a+b,0),Declined:v.filter(d=>d.engine_decision==='Declined').map(valueAccessor).reduce((a,b)=>a+b,0),Flag:v.filter(d=>d.engine_decision==='Flag').map(valueAccessor).reduce((a,b)=>a+b,0),Error:v.filter(d=>d.engine_decision==='Error').map(valueAccessor).reduce((a,b)=>a+b,0)}),d=>mfmt(d.date)).sort((a,b)=>d3.ascending(a[0],b[0])); const keys=['Approved','Declined','Flag','Error']; const series=d3.stack().keys(keys)(groups.map(([k,obj])=>({month:k,...obj}))); return {series,groups,keys}; }
+
+    function renderTrend(){ const data=filtered(); const mode=document.getElementById('modeToggle').value; const valueAccessor = mode==='volume'? d=>1 : d=>d.billed; const container=d3.select('#trendChart'); container.selectAll('*').remove(); const w=container.node().clientWidth||700; const h=260; const margin={top:20,right:12,bottom:36,left:60}; const {series,groups}=stackedByMonth(data,valueAccessor);
+      const x=d3.scaleBand(groups.map(d=>d[0]),[margin.left,w-margin.right]).padding(0.12); const yMax=d3.max(series,s=>d3.max(s,d=>d[1]))||1; const y=d3.scaleLinear([0,yMax],[h-margin.bottom,margin.top]); const svg=container.append('svg').attr('width',w).attr('height',h);
+      svg.append('g').selectAll('g').data(series).join('g').attr('fill',d=>statusColors.get(d.key)).selectAll('rect').data(d=>d).join('rect').attr('x',(d,i)=>x(groups[i][0])).attr('y',d=>y(d[1])).attr('height',d=>Math.max(1,y(d[0])-y(d[1]))).attr('width',x.bandwidth()).on('mousemove',(e,d)=>{const key=d3.select(e.currentTarget.parentNode).datum().key; const month=groups[d.data.index][0]; const val=(d[1]-d[0]); showTip(`<b>${key}</b><br/>${month}<br/>${mode==='volume'? formatNum(val): formatMoney(val)}`,e.pageX,e.pageY)}).on('mouseleave',hideTip);
+      svg.append('g').attr('transform',`translate(0,${h-margin.bottom})`).call(d3.axisBottom(x)).selectAll('text').attr('transform','rotate(-35)').style('text-anchor','end'); svg.append('g').attr('transform',`translate(${margin.left},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(d=> mode==='volume'? d3.format(',')(d): '$'+d3.format(',')(Math.round(d)))); const legend = d3.select('#trendChart').append('div').attr('class','legend'); legend.selectAll('.legend-item').data(['Approved','Declined','Flag','Error']).join('div').attr('class','legend-item').html(d=>`<span class='swatch' style='background:${statusColors.get(d)}'></span>${d}`);
+    }
+    document.getElementById('modeToggle').addEventListener('change', renderTrend);
+
+    /* ===== Billed distribution (histogram) ===== */
+    function renderBilledDist(){ const data=filtered(); const container=d3.select('#billedDist'); container.selectAll('*').remove(); const w=container.node().clientWidth||500; const h=260; const margin={top:20,right:12,bottom:30,left:50}; const billed=data.map(d=>d.billed); const x=d3.scaleLog().domain([Math.max(10,d3.min(billed)), d3.max(billed)||1000]).range([margin.left,w-margin.right]); const bins=d3.bin().thresholds(30).value(d=>d)(billed); const y=d3.scaleLinear([0,d3.max(bins,d=>d.length)||1],[h-margin.bottom,margin.top]); const svg=container.append('svg').attr('width',w).attr('height',h);
+      svg.append('g').selectAll('rect').data(bins).join('rect').attr('x',d=> x(d.x0)).attr('width',d=> Math.max(1, x(d.x1)-x(d.x0)-1)).attr('y',d=>y(d.length)).attr('height',d=> y(0)-y(d.length)).attr('fill','#60a5fa').on('mousemove',(e,d)=> showTip(`${d.length} claims<br/>${Math.round(d.x0)} - ${Math.round(d.x1)}`,e.pageX,e.pageY)).on('mouseleave',hideTip);
+      svg.append('g').attr('transform',`translate(0,${h-margin.bottom})`).call(d3.axisBottom(x).ticks(6, '~s'));
+      svg.append('g').attr('transform',`translate(${margin.left},0)`).call(d3.axisLeft(y).ticks(5));
+    }
+
+    /* ===== Bubble chart for multi-flag high-billed claims ===== */
+    function renderBubble(){ const data=filtered().filter(d=> d.flags_count>0); const container=d3.select('#bubbleChart'); container.selectAll('*').remove(); const w=container.node().clientWidth||700; const h=320; const margin={top:20,right:12,bottom:50,left:60}; const hospitalsIdx = Array.from(new Set(data.map(d=>d.hospital))).slice(0,20); const y=d3.scaleBand(hospitalsIdx,[h-margin.bottom,margin.top]).padding(0.2); const x=d3.scaleLinear([0,d3.max(data,d=>d.flags_count)||1],[margin.left,w-margin.right]); const r = d3.scaleSqrt([0,d3.max(data,d=>d.billed)||1],[2,28]); const svg=container.append('svg').attr('width',w).attr('height',h);
+      const shown = data.filter(d=> hospitalsIdx.includes(d.hospital)).slice(0,120);
+      svg.append('g').selectAll('circle').data(shown).join('circle').attr('cx',d=>x(d.flags_count)).attr('cy',d=> y(d.hospital)+ y.bandwidth()/2).attr('r',d=> r(d.billed)).attr('fill','#f59e0b').attr('opacity',0.8).on('mousemove',(e,d)=> showTip(`<b>Claim ${d.id}</b><br/>Hospital: ${d.hospital}<br/>Billed: ${formatMoney(d.billed)}<br/>Flags: ${d.flags_count}<br/>Rule: ${d.rule}`,e.pageX,e.pageY)).on('mouseleave',hideTip);
+      svg.append('g').attr('transform',`translate(0,${h-margin.bottom})`).call(d3.axisBottom(x).ticks(5)); svg.append('g').attr('transform',`translate(${margin.left},0)`).call(d3.axisLeft(y));
+    }
+
+    /* ===== Hospital heat (top flag rate) ===== */
+    function renderHospitalHeat(){ const data=filtered(); const container=d3.select('#hospitalHeat'); container.selectAll('*').remove(); const w=container.node().clientWidth||500; const h=260; const margin={top:20,right:12,bottom:30,left:130}; const agg = d3.rollups(data,v=>({total:v.length,flagged:v.filter(d=>d.engine_decision==='Flag').length}),d=>d.hospital).map(([h,o])=>({hospital:h,total:o.total,rate:o.flagged/Math.max(1,o.total)})).sort((a,b)=>d3.descending(a.rate,b.rate)).slice(0,12).reverse(); const svg=container.append('svg').attr('width',w).attr('height',h); const x=d3.scaleLinear([0,1],[margin.left,w-margin.right]); const y=d3.scaleBand(agg.map(d=>d.hospital),[h-margin.bottom,margin.top]).padding(0.15); const color=d3.scaleSequential(d3.interpolateTurbo).domain([0,1]); svg.append('g').selectAll('rect').data(agg).join('rect').attr('x',x(0)).attr('y',d=>y(d.hospital)).attr('width',d=>x(d.rate)-x(0)).attr('height',y.bandwidth()).attr('fill',d=>color(d.rate)).on('mousemove',(e,d)=> showTip(`${d.hospital}<br/>Flag rate: ${(d.rate*100).toFixed(1)}%<br/>Claims: ${formatNum(d.total)}`,e.pageX,e.pageY)).on('mouseleave',hideTip); svg.append('g').attr('transform',`translate(0,${h-margin.bottom})`).call(d3.axisBottom(x).tickFormat(d=> (d*100)+'%')); svg.append('g').attr('transform',`translate(${margin.left},0)`).call(d3.axisLeft(y)); }
+
+    /* ===== Rules visuals ===== */
+    function renderRuleFlagChart(){ const data=filtered(); const container=d3.select('#ruleFlagChart'); container.selectAll('*').remove(); const w=container.node().clientWidth||600; const h=300; const margin={top:20,right:12,bottom:90,left:56}; const agg = d3.rollups(data,v=> v.filter(d=>d.engine_decision==='Flag').length,d=>d.rule).map(([rule,count])=>({rule,count})).sort((a,b)=>d3.descending(a.count,b.count)).slice(0,12); const x=d3.scaleBand(agg.map(d=>d.rule),[margin.left,w-margin.right]).padding(0.2); const y=d3.scaleLinear([0,d3.max(agg,d=>d.count)||1],[h-margin.bottom,margin.top]); const svg=container.append('svg').attr('width',w).attr('height',h); svg.append('g').selectAll('rect').data(agg).join('rect').attr('x',d=>x(d.rule)).attr('width',x.bandwidth()).attr('y',d=>y(d.count)).attr('height',d=>y(0)-y(d.count)).attr('fill','#f59e0b').on('mousemove',(e,d)=> showTip(`${d.rule}<br/>Flagged: ${formatNum(d.count)}`,e.pageX,e.pageY)).on('mouseleave',hideTip); svg.append('g').attr('transform',`translate(0,${h-margin.bottom})`).call(d3.axisBottom(x)).selectAll('text').attr('transform','rotate(-35)').style('text-anchor','end'); svg.append('g').attr('transform',`translate(${margin.left},0)`).call(d3.axisLeft(y)); }
+
+    function renderRuleOutcomeChart(){ const data=filtered(); const container=d3.select('#ruleOutcomeChart'); container.selectAll('*').remove(); const w=container.node().clientWidth||600; const h=220; const margin={top:20,right:12,bottom:40,left:56}; const agg = d3.rollups(data,v=>({Approved:v.filter(d=>d.engine_decision==='Approved').length,Declined:v.filter(d=>d.engine_decision==='Declined').length,Flag:v.filter(d=>d.engine_decision==='Flag').length,Error:v.filter(d=>d.engine_decision==='Error').length}),d=>d.rule).map(([rule,o])=>({rule,...o})).sort((a,b)=> d3.descending(a.Approved+a.Declined+a.Flag+a.Error,b.Approved+b.Declined+b.Flag+b.Error)).slice(0,8); const keys=['Approved','Declined','Flag','Error']; const x=d3.scaleBand(agg.map(d=>d.rule),[margin.left,w-margin.right]).padding(0.12); const y=d3.scaleLinear([0,d3.max(agg,d=> keys.reduce((s,k)=>s+d[k],0))||1],[h-margin.bottom,margin.top]); const color=d3.scaleOrdinal().domain(keys).range(keys.map(k=> statusColors.get(k))); const svg=container.append('svg').attr('width',w).attr('height',h); const stack=d3.stack().keys(keys)(agg); svg.append('g').selectAll('g').data(stack).join('g').attr('fill',d=>color(d.key)).selectAll('rect').data(d=>d).join('rect').attr('x',d=>x(d.data.rule)).attr('y',d=>y(d[1])).attr('height',d=>y(d[0])-y(d[1])).attr('width',x.bandwidth()).on('mousemove',(e,d)=>{const key=d3.select(e.currentTarget.parentNode).datum().key; showTip(`${d.data.rule}<br/>${key}: ${formatNum(d[1]-d[0])}`,e.pageX,e.pageY)}).on('mouseleave',hideTip); svg.append('g').attr('transform',`translate(0,${h-margin.bottom})`).call(d3.axisBottom(x)).selectAll('text').attr('transform','rotate(-30)').style('text-anchor','end'); svg.append('g').attr('transform',`translate(${margin.left},0)`).call(d3.axisLeft(y)); }
+
+    /* rule treemap */
+    function renderRuleTreemap(){ const data=filtered(); const container=d3.select('#ruleTreemap'); container.selectAll('*').remove(); const w=container.node().clientWidth||600; const h=200; const agg = d3.rollups(data,v=> v.length,d=>d.rule).map(([k,v])=>({name:k,value:v})); const root = d3.hierarchy({children:agg}).sum(d=>d.value); d3.treemap().size([w,h]).padding(2)(root); const svg=container.append('svg').attr('width',w).attr('height',h); const color=d3.scaleOrdinal(d3.schemeTableau10); const node=svg.selectAll('g').data(root.leaves()).join('g').attr('transform',d=>`translate(${d.x0},${d.y0})`); node.append('rect').attr('width',d=>d.x1-d.x0).attr('height',d=>d.y1-d.y0).attr('fill',d=>color(d.data.name)); node.append('text').attr('x',4).attr('y',14).attr('fill','#071226').text(d=>d.data.name + ' ('+d.data.value+')').style('font-size','11px'); }
+
+    /* ===== Sankey & confusion ===== */
+    function renderSankey(){ const data=filtered(); const container=d3.select('#sankey'); container.selectAll('*').remove(); const w=container.node().clientWidth||700; const h=320; const nodes = ['Engine: Approved','Engine: Declined','Engine: Flag','Engine: Error','Assessor: Approved','Assessor: Declined','Assessor: Flag','Assessor: Error'].map(n=>({name:n})); const nodeIndex = new Map(nodes.map((n,i)=>[n.name,i])); function linkVal(e,a){ return data.filter(d=> d.engine_decision===e && d.assessor_decision===a).length }
+      const pairs = [['Approved','Approved'],['Approved','Declined'],['Approved','Flag'],['Approved','Error'],['Declined','Approved'],['Declined','Declined'],['Declined','Flag'],['Declined','Error'],['Flag','Approved'],['Flag','Declined'],['Flag','Flag'],['Flag','Error'],['Error','Approved'],['Error','Declined'],['Error','Flag'],['Error','Error']]; const links = pairs.map(([e,a])=>({source:nodeIndex.get('Engine: '+e),target:nodeIndex.get('Assessor: '+a),value:linkVal(e,a)})).filter(l=>l.value>0); const svg = container.append('svg').attr('width',w).attr('height',h); const sk = d3.sankey().nodeWidth(12).nodePadding(10).extent([[10,10],[w-10,h-10]]); const graph = sk({nodes: nodes.map(d=>({...d})), links: links.map(d=>({...d}))}); const color = d3.scaleOrdinal().domain(nodes.map(n=>n.name)).range(['#22c55e','#ef4444','#f59e0b','#64748b','#22c55e','#ef4444','#f59e0b','#64748b']); svg.append('g').selectAll('path').data(graph.links).join('path').attr('d',d3.sankeyLinkHorizontal()).attr('stroke',d=> color(graph.nodes[d.source.index].name)).attr('stroke-width',d=> Math.max(1,d.width)).attr('fill','none').attr('opacity',0.6).on('mousemove',(e,d)=> showTip(`${graph.nodes[d.source.index].name} → ${graph.nodes[d.target.index].name}<br/>Claims: ${formatNum(d.value)}`,e.pageX,e.pageY)).on('mouseleave',hideTip); const node = svg.append('g').selectAll('g').data(graph.nodes).join('g'); node.append('rect').attr('x',d=>d.x0).attr('y',d=>d.y0).attr('width',d=>d.x1-d.x0).attr('height',d=>Math.max(1,d.y1-d.y0)).attr('fill',d=>color(d.name)); node.append('text').attr('x',d=> d.x0 < w/2 ? d.x1 + 6 : d.x0 - 6).attr('y',d=> (d.y1 + d.y0)/2).attr('dy','0.35em').attr('text-anchor',d=> d.x0 < w/2 ? 'start':'end').attr('fill','#cbd5e1').text(d=> `${d.name} (${formatNum(d.value)})`);
+    }
+
+    function renderConfusion(){ const data=filtered(); const container=d3.select('#confusionMatrix'); container.selectAll('*').remove(); const statuses = ['Approved','Declined','Flag','Error']; const matrix = []; statuses.forEach((e,i)=> statuses.forEach((a,j)=> matrix.push({engine:e,assessor:a,value: data.filter(d=>d.engine_decision===e && d.assessor_decision===a).length, r:i, c:j}))); const w=container.node().clientWidth||420; const cell=80; const h=cell*statuses.length; const svg=container.append('svg').attr('width',w).attr('height',h+50); const color=d3.scaleSequential(d3.interpolateBlues).domain([0,d3.max(matrix,d=>d.value)||1]); svg.selectAll('rect').data(matrix).join('rect').attr('x',d=> d.c*cell+120).attr('y',d=> d.r*cell+20).attr('width',cell-6).attr('height',cell-6).attr('fill',d=> color(d.value)).on('mousemove',(e,d)=> showTip(`${d.engine} (engine) → ${d.assessor} (assessor): ${formatNum(d.value)}`,e.pageX,e.pageY)).on('mouseleave',hideTip); svg.selectAll('text.engine').data(statuses).join('text').attr('x',80).attr('y',(d,i)=> i*cell+20+cell/2).attr('text-anchor','end').attr('dy','.35em').text(d=>d); svg.selectAll('text.assessor').data(statuses).join('text').attr('x',(d,i)=> i*cell+120+cell/2).attr('y',12).attr('text-anchor','middle').text(d=>d); svg.selectAll('text.val').data(matrix).join('text').attr('x',d=> d.c*cell+120+cell/2).attr('y',d=> d.r*cell+20+cell/2).attr('text-anchor','middle').attr('dy','.35em').attr('fill',d=> d.value> (d3.max(matrix,d=>d.value)/3)?'#071226':'#cbd5e1').text(d=> d.value>0? formatNum(d.value):''); }
+
+    /* ===== Savings chart & insights ===== */
+    function renderSavings(){ const data=filtered(); const container=d3.select('#savingsChart'); container.selectAll('*').remove(); const w=container.node().clientWidth||600; const h=260; const m={top:20,right:12,bottom:36,left:60}; const month=d3.timeFormat('%Y-%m'); const groups = d3.rollups(data,v=>({engine:d3.sum(v,d=>d.potential_saving),assessor:d3.sum(v,d=> (d.assessor_decision==='Declined'? d.billed*0.5: d.assessor_decision==='Flag'? d.billed*0.2:0))}),d=> month(d.date)).map(([k,o])=>({month:k,...o})).sort((a,b)=> d3.ascending(a.month,b.month)); const x=d3.scaleBand(groups.map(d=>d.month),[m.left,w-m.right]).padding(0.12); const y=d3.scaleLinear([0,d3.max(groups,d=> Math.max(d.engine,d.assessor))||1],[h-m.bottom,m.top]); const svg=container.append('svg').attr('width',w).attr('height',h); svg.selectAll('.bar.engine').data(groups).join('rect').attr('class','bar engine').attr('x',d=> x(d.month)).attr('width', x.bandwidth()/2 -3).attr('y',d=> y(d.engine)).attr('height',d=> y(0)-y(d.engine)).attr('fill','#22c55e').on('mousemove',(e,d)=> showTip(`${d.month}<br/>Engine: ${formatMoney(d.engine)}`,e.pageX,e.pageY)).on('mouseleave',hideTip); svg.selectAll('.bar.assessor').data(groups).join('rect').attr('class','bar assessor').attr('x',d=> x(d.month)+ x.bandwidth()/2+3).attr('width',x.bandwidth()/2-3).attr('y',d=> y(d.assessor)).attr('height',d=> y(0)-y(d.assessor)).attr('fill','#60a5fa').on('mousemove',(e,d)=> showTip(`${d.month}<br/>Assessor: ${formatMoney(d.assessor)}`,e.pageX,e.pageY)).on('mouseleave',hideTip); svg.append('g').attr('transform',`translate(0,${h-m.bottom})`).call(d3.axisBottom(x)); svg.append('g').attr('transform',`translate(${m.left},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(d=> '$'+d3.format(',')(Math.round(d)))); }
+
+    function renderInsights(){ const data=filtered(); const insights = []; const disagree = data.filter(d=> d.engine_decision!==d.assessor_decision); const disagreeRate = disagree.length / Math.max(1,data.length); insights.push(`<p>Overall disagreement rate: ${(disagreeRate*100).toFixed(2)}% (${formatNum(disagree.length)} claims)</p>`); const topHosp = d3.rollups(disagree,v=>v.length,d=>d.hospital).map(([h,c])=>({h,c})).sort((a,b)=>d3.descending(a.c,b.c)).slice(0,5); insights.push(`<p>Top hospitals with disagreements: ${topHosp.map(t=>`${t.h}(${t.c})`).join(', ')}</p>`); const topRules = d3.rollups(disagree,v=>v.length,d=>d.rule).map(([r,c])=>({r,c})).sort((a,b)=> d3.descending(a.c,b.c)).slice(0,5); insights.push(`<p>Rules driving disagreement: ${topRules.map(t=>`${t.r}(${t.c})`).join(', ')}</p>`); d3.select('#insights').html(insights.join('')) }
+
+    /* ===== Hospital table ===== */
+    function renderHospitalTable(){ const data=filtered(); const agg = d3.rollups(data,v=>({total:v.length,flagged:v.filter(d=>d.engine_decision==='Flag').length,approved:v.filter(d=>d.engine_decision==='Approved').length,declined:v.filter(d=>d.engine_decision==='Declined').length,errors:v.filter(d=>d.engine_decision==='Error').length,billed:d3.sum(v,d=>d.billed),saving:d3.sum(v,d=>d.potential_saving)}),d=>d.hospital).map(([h,o])=>({hospital:h,...o,flagRate:o.flagged/Math.max(1,o.total)})).sort((a,b)=>d3.descending(a.total,b.total)); const tbody = d3.select('#hospitalTable tbody'); tbody.selectAll('tr').remove(); const rows = tbody.selectAll('tr').data(agg).join('tr'); rows.html(d=>`<td>${d.hospital}</td><td>${formatNum(d.total)}</td><td>${formatNum(d.flagged)}</td><td>${formatNum(d.approved)}</td><td>${formatNum(d.declined)}</td><td>${formatNum(d.errors)}</td><td>${(d.flagRate*100).toFixed(1)}%</td><td>${formatMoney(d.billed)}</td><td>${formatMoney(d.saving)}</td>`); }
+
+    /* ===== Simulation ===== */
+    document.getElementById('simFlags').addEventListener('input', e=> document.getElementById('simFlagsVal').textContent = e.target.value);
+    document.getElementById('simBilled').addEventListener('input', e=> document.getElementById('simBilledVal').textContent = e.target.value);
+    document.getElementById('runSim').addEventListener('click', ()=>{
+      const minFlags = +document.getElementById('simFlags').value; const billedCut = +document.getElementById('simBilled').value; const data = filtered(); const selected = data.filter(d=> d.flags_count>=minFlags || d.billed>=billedCut); const totalSel = selected.length; const billedSel = d3.sum(selected,d=>d.billed); const estSaving = d3.sum(selected,d=> d.engine_decision==='Declined'? d.billed*0.5: d.engine_decision==='Flag'? d.billed*0.2:0); d3.select('#simResult').html(`<p>Claims caught: ${formatNum(totalSel)} | Billed: ${formatMoney(billedSel)} | Est. Savings: ${formatMoney(estSaving)}</p>`);
+    });
+
+    /* ===== Master render ===== */
+    function renderAll(){ const data = filtered(); renderKPIs(data); renderTrend(); renderBilledDist(); renderBubble(); renderHospitalHeat(); renderRuleFlagChart(); renderRuleOutcomeChart(); renderRuleTreemap(); renderSankey(); renderConfusion(); renderSavings(); renderInsights(); renderHospitalTable(); }
+    renderAll();
+  </script>
+</body>
+</html>

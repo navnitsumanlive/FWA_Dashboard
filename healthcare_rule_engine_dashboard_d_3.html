@@ -1,0 +1,710 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Healthcare Claim Rule Engine Dashboard — D3.js</title>
+  <!-- D3 & Plugins -->
+  <script src="https://unpkg.com/d3@7"></script>
+  <script src="https://unpkg.com/d3-sankey@0.12.3/dist/d3-sankey.min.js"></script>
+  <style>
+    :root {
+      --bg: #0f172a;
+      --panel: #111827;
+      --card: #0b1220;
+      --ink: #e5e7eb;
+      --muted: #94a3b8;
+      --accent: #60a5fa;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --bad: #ef4444;
+    }
+    * { box-sizing: border-box; }
+    body { margin:0; font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif; background: var(--bg); color: var(--ink); }
+    header { padding: 16px 20px; background: linear-gradient(90deg, #0b1220, #0f172a); border-bottom: 1px solid #1f2937; display:flex; gap:12px; align-items:center; justify-content:space-between; }
+    header h1 { margin:0; font-size: 18px; letter-spacing: .3px; font-weight:600; }
+    .controls { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    select, input[type="date"], button, .btn { background:#0b1220; color:var(--ink); border:1px solid #1f2937; border-radius:10px; padding:8px 10px; font-size:13px; }
+    button, .btn { cursor:pointer; }
+    .tabs { display:flex; border-bottom:1px solid #1f2937; background:#0b1220; position:sticky; top:0; z-index: 5; }
+    .tab { padding:12px 16px; cursor:pointer; color:var(--muted); border-bottom:2px solid transparent; user-select:none; }
+    .tab.active { color:var(--ink); border-color: var(--accent); background: #0e1526; }
+    .page { display:none; padding:16px; }
+    .page.active { display:block; }
+
+    .kpis { display:grid; grid-template-columns: repeat(5, 1fr); gap:12px; margin:14px 0 18px; }
+    .kpi { background: var(--card); border:1px solid #1f2937; border-radius:14px; padding:14px; }
+    .kpi .label { color: var(--muted); font-size:12px; }
+    .kpi .value { font-size:22px; font-weight:700; margin-top:6px; }
+    .row { display:grid; grid-template-columns: 1.3fr 1fr; gap:16px; }
+    .panel { background: var(--panel); border:1px solid #1f2937; border-radius:14px; padding:12px; }
+    .panel h3 { margin:4px 0 12px; font-size:14px; color:var(--muted); letter-spacing:.2px; font-weight:600; }
+
+    .legend { display:flex; gap:10px; flex-wrap:wrap; margin-top:6px; }
+    .legend-item { display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); }
+    .swatch { width:10px; height:10px; border-radius:2px; display:inline-block; }
+
+    table { width:100%; border-collapse: collapse; font-size:12px; }
+    th, td { padding:8px 10px; border-bottom:1px solid #1f2937; text-align:left; }
+    thead th { position:sticky; top:0; background:#0e1526; z-index:1; }
+
+    .footer-note { color: var(--muted); font-size:11px; margin-top:10px; }
+    .hint { color: var(--muted); font-size:12px; }
+
+    /* Tooltips */
+    .tooltip { position: fixed; pointer-events: none; background:#0b1220; border:1px solid #1f2937; color:#e5e7eb; padding:8px 10px; border-radius:10px; font-size:12px; opacity:0; transform: translateY(4px); transition: opacity .15s ease, transform .15s ease; }
+
+    @media (max-width: 1200px) { .kpis{grid-template-columns: repeat(3, 1fr);} .row { grid-template-columns: 1fr; } }
+    @media (max-width: 700px)  { .kpis{grid-template-columns: repeat(2, 1fr);} }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Healthcare Claim Rule Engine Dashboard — D3.js</h1>
+    <div class="controls">
+      <label class="hint">Date:</label>
+      <input id="fromDate" type="date" />
+      <span class="hint">to</span>
+      <input id="toDate" type="date" />
+      <select id="hospitalFilter"><option value="ALL">All Hospitals</option></select>
+      <select id="decisionFilter">
+        <option value="ALL">All Decisions</option>
+        <option value="Approved">Approved</option>
+        <option value="Declined">Declined</option>
+        <option value="Flag">Flag</option>
+        <option value="Error">Processing Error</option>
+      </select>
+      <button id="resetFilters">Reset</button>
+      <button id="exportClaims">Export Claims CSV</button>
+      <button id="exportHosp">Export Hospital CSV</button>
+    </div>
+  </header>
+
+  <div class="tabs">
+    <div class="tab active" data-page="summary">Overall Summary</div>
+    <div class="tab" data-page="rules">Rule Engine</div>
+    <div class="tab" data-page="comparison">Assessor vs Engine</div>
+  </div>
+
+  <!-- SUMMARY PAGE -->
+  <section id="summary" class="page active">
+    <div class="kpis" id="kpiRow"></div>
+    <div class="row">
+      <div class="panel">
+        <h3>Claim Volume by Status (stacked)</h3>
+        <div id="volChart"></div>
+        <div class="legend" id="volLegend"></div>
+      </div>
+      <div class="panel">
+        <h3>Billed Amount by Status (stacked)</h3>
+        <div id="amtChart"></div>
+        <div class="legend" id="amtLegend"></div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:16px;">
+      <div class="panel">
+        <h3>Claims with >1 Flag (distribution)</h3>
+        <div id="multiFlagChart"></div>
+      </div>
+      <div class="panel">
+        <h3>Hospital-level Flag Rate (heatmap)</h3>
+        <div id="hospitalHeat"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- RULE ENGINE PAGE -->
+  <section id="rules" class="page">
+    <div class="row">
+      <div class="panel">
+        <h3>Top Rules by Flag Count</h3>
+        <div id="ruleFlagChart"></div>
+      </div>
+      <div class="panel">
+        <h3>Rule Outcome Mix</h3>
+        <div id="ruleOutcomeChart"></div>
+      </div>
+    </div>
+
+    <div class="panel" style="margin-top:16px;">
+      <h3>Hospital Level View</h3>
+      <div style="overflow:auto; max-height: 420px;">
+        <table id="hospitalTable">
+          <thead>
+            <tr>
+              <th>Hospital</th>
+              <th>Total Claims</th>
+              <th>Flagged</th>
+              <th>Approved</th>
+              <th>Declined</th>
+              <th>Errors</th>
+              <th>Flag Rate %</th>
+              <th>Billed Amount</th>
+              <th>Potential Savings</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- COMPARISON PAGE -->
+  <section id="comparison" class="page">
+    <div class="row">
+      <div class="panel">
+        <h3>Engine vs Assessor — Decision Flow (Sankey)</h3>
+        <div id="sankey"></div>
+      </div>
+      <div class="panel">
+        <h3>Monthly Savings: Engine vs Assessor</h3>
+        <div id="savingsChart"></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="tooltip" id="tooltip"></div>
+
+  <script>
+    /**********************
+     * MOCK DATA GENERATOR *
+     **********************/
+    const rnd = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+    const sample = (arr) => arr[Math.floor(Math.random() * arr.length)];
+
+    const hospitals = Array.from({length: 22}, (_,i)=> `Hospital ${String.fromCharCode(65 + (i%26))}${i}`);
+    const rules = [
+      'High Amount Check','Duplicate Claim','Invalid Specialty','Provider Blacklist','Excess LOS','Unbundling','Upcoding','Geographic Mismatch','Readmission Window','Missing Docs'
+    ];
+    const statuses = ['Approved','Declined','Flag','Error'];
+
+    const start = new Date(); start.setMonth(start.getMonth()-5); // 5 months of data
+    const dates = Array.from({length: 180}, (_,i)=> new Date(start.getTime() + i*24*3600*1000));
+
+    // 25,000 claims
+    const claims = Array.from({length: 25000}, (_,id)=>{
+      const hospital = sample(hospitals);
+      const billed = Math.round(d3.randomLogNormal(8, 0.6)()); // skewed
+      const engine = sample(statuses);
+      const assessor = Math.random() < 0.8 ? engine : sample(statuses); // 80% agreement baseline
+      const flagsCount = engine==='Flag' ? rnd(1, 4) : (Math.random()<0.1? rnd(2,4): rnd(0,1));
+      const date = sample(dates);
+      const potentialSaving = (engine==='Declined' ? billed * 0.5 : engine==='Flag' ? billed * 0.2 : 0);
+      const error = engine==='Error';
+      const rule = sample(rules);
+      return { id, date, hospital, billed, engine_decision: engine, assessor_decision: assessor, flags_count: flagsCount, rule, potential_saving: Math.round(potentialSaving), error };
+    });
+
+    /**********************
+     * STATE & FILTERS     *
+     **********************/
+    const state = { hospital: 'ALL', decision: 'ALL', from: null, to: null };
+
+    // populate filters
+    const hospitalSel = document.getElementById('hospitalFilter');
+    hospitals.forEach(h=>{ const o=document.createElement('option'); o.value=h; o.textContent=h; hospitalSel.appendChild(o); });
+
+    // default date range
+    const minDate = d3.min(claims, d=>d.date);
+    const maxDate = d3.max(claims, d=>d.date);
+    const fmtDate = d3.timeFormat('%Y-%m-%d');
+    const fromInput = document.getElementById('fromDate');
+    const toInput = document.getElementById('toDate');
+    fromInput.value = fmtDate(minDate); toInput.value = fmtDate(maxDate);
+    state.from = new Date(fromInput.value); state.to = new Date(toInput.value);
+
+    hospitalSel.addEventListener('change', e=>{ state.hospital = e.target.value; renderAll(); });
+    document.getElementById('decisionFilter').addEventListener('change', e=>{ state.decision = e.target.value; renderAll(); });
+    fromInput.addEventListener('change', ()=> { state.from = new Date(fromInput.value); renderAll(); });
+    toInput.addEventListener('change', ()=> { state.to = new Date(toInput.value); renderAll(); });
+    document.getElementById('resetFilters').addEventListener('click', ()=>{
+      state.hospital = 'ALL'; state.decision='ALL'; state.from=minDate; state.to=maxDate;
+      hospitalSel.value='ALL'; document.getElementById('decisionFilter').value='ALL';
+      fromInput.value = fmtDate(minDate); toInput.value = fmtDate(maxDate);
+      renderAll();
+    });
+
+    // Tabs
+    document.querySelectorAll('.tab').forEach(t=> t.addEventListener('click', (e)=>{
+      document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+      document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+      e.currentTarget.classList.add('active');
+      document.getElementById(e.currentTarget.dataset.page).classList.add('active');
+      // ensure responsive redraw on tab switch
+      setTimeout(renderAll, 50);
+    }));
+
+    // Tooltip utilities
+    const tooltip = d3.select('#tooltip');
+    function showTip(html, x, y){ tooltip.html(html).style('left', (x+12)+"px").style('top', (y+12)+"px").style('opacity', 1).style('transform','translateY(0)'); }
+    function hideTip(){ tooltip.style('opacity', 0).style('transform','translateY(4px)'); }
+
+    /**********************
+     * HELPERS             *
+     **********************/
+    function filteredClaims(){
+      return claims.filter(c=>{
+        if (state.hospital !== 'ALL' && c.hospital !== state.hospital) return false;
+        if (state.decision !== 'ALL' && c.engine_decision !== state.decision) return false;
+        if (c.date < state.from || c.date > state.to) return false;
+        return true;
+      });
+    }
+
+    function fmt(num){
+      return d3.format(',')(Math.round(num));
+    }
+    const currency = d3.format('$,');
+
+    /**********************
+     * KPI CARDS           *
+     **********************/
+    function renderKPIs(data){
+      const total = data.length;
+      const errors = data.filter(d=>d.error).length;
+      const approved = data.filter(d=>d.engine_decision==='Approved').length;
+      const declined = data.filter(d=>d.engine_decision==='Declined').length;
+      const flagged = data.filter(d=>d.engine_decision==='Flag').length;
+      const billedSum = d3.sum(data, d=>d.billed);
+      const saving = d3.sum(data, d=>d.potential_saving);
+
+      const kpis = [
+        {label:'Processed by Engine', value: fmt(total)},
+        {label:'Processing Errors', value: fmt(errors)},
+        {label:'Approved', value: fmt(approved)},
+        {label:'Declined', value: fmt(declined)},
+        {label:'Flagged', value: fmt(flagged)},
+      ];
+
+      const row = d3.select('#kpiRow');
+      const sel = row.selectAll('.kpi').data(kpis, d=>d.label);
+      const enter = sel.enter().append('div').attr('class','kpi');
+      enter.append('div').attr('class','label');
+      enter.append('div').attr('class','value');
+      sel.merge(enter).select('.label').text(d=>d.label);
+      sel.merge(enter).select('.value').text(d=>d.value);
+
+      // Add a footer note in summary showing Billed & Savings
+      let footer = d3.select('#summary').select('.footer-note');
+      if (footer.empty()) footer = d3.select('#summary').append('div').attr('class','footer-note');
+      footer.text(`Billed Amount (total): ${currency(billedSum)} | Estimated Savings: ${currency(saving)}`);
+    }
+
+    /**********************
+     * STACKED BAR CHARTS  *
+     **********************/
+    const statusColors = new Map([
+      ['Approved', '#22c55e'],
+      ['Declined', '#ef4444'],
+      ['Flag', '#f59e0b'],
+      ['Error', '#64748b']
+    ]);
+
+    function stackedDataByMonth(data, valueAccessor){
+      // group by month bucket
+      const mfmt = d3.timeFormat('%Y-%m');
+      const groups = d3.rollups(data,
+        v=>({
+          Approved: v.filter(d=>d.engine_decision==='Approved').map(valueAccessor).reduce((a,b)=>a+b,0),
+          Declined: v.filter(d=>d.engine_decision==='Declined').map(valueAccessor).reduce((a,b)=>a+b,0),
+          Flag: v.filter(d=>d.engine_decision==='Flag').map(valueAccessor).reduce((a,b)=>a+b,0),
+          Error: v.filter(d=>d.engine_decision==='Error').map(valueAccessor).reduce((a,b)=>a+b,0),
+        }),
+        d=> mfmt(d.date)
+      ).sort((a,b)=> d3.ascending(a[0], b[0]));
+
+      const keys = ['Approved','Declined','Flag','Error'];
+      const series = d3.stack().keys(keys)(
+        groups.map(([k,obj])=> ({month:k, ...obj}))
+      );
+      return { series, groups, keys };
+    }
+
+    function renderStacked(containerId, legendId, data, valueAccessor, valueLabel){
+      const cont = d3.select(containerId);
+      cont.selectAll('*').remove();
+      const width = cont.node().clientWidth || 600;
+      const height = 260;
+      const margin = {top: 20, right: 12, bottom: 28, left: 56};
+
+      const { series, groups } = stackedDataByMonth(data, valueAccessor);
+      const x = d3.scaleBand(groups.map(d=>d[0]), [margin.left, width-margin.right]).padding(0.15);
+      const yMax = d3.max(series, s=> d3.max(s, d=> d[1])) || 1;
+      const y = d3.scaleLinear([0, yMax], [height - margin.bottom, margin.top]);
+
+      const svg = cont.append('svg').attr('width', width).attr('height', height);
+
+      svg.append('g').selectAll('g').data(series).join('g')
+        .attr('fill', d => statusColors.get(d.key))
+        .selectAll('rect').data(d => d).join('rect')
+          .attr('x', (d,i) => x(groups[i][0]))
+          .attr('y', d => y(d[1]))
+          .attr('height', d => Math.max(0.0001, y(d[0]) - y(d[1])))
+          .attr('width', x.bandwidth())
+          .on('mousemove', (event,d)=>{
+            const i = d3.select(event.currentTarget.parentNode).datum().key;
+            const month = groups[d.data.index]?.[0] || '';
+            const val = valueAccessor.recover ? valueAccessor.recover(d) : (d[1]-d[0]);
+            showTip(`<b>${i}</b><br/>${month}<br/>${valueLabel}: ${fmt(val)}`, event.pageX, event.pageY);
+          })
+          .on('mouseleave', hideTip);
+
+      // axes
+      const xAxis = (g)=> g.attr('transform', `translate(0,${height - margin.bottom})`)
+        .call(d3.axisBottom(x).tickSizeOuter(0));
+      const yAxis = (g)=> g.attr('transform', `translate(${margin.left},0)`) 
+        .call(d3.axisLeft(y).ticks(5).tickFormat(d3.format(',')))
+        .call(g=> g.select('.domain').remove())
+        .call(g=> g.append('text').attr('x', 0).attr('y', 10).attr('fill', '#9ca3af').attr('text-anchor','start').text(valueLabel));
+
+      svg.append('g').call(xAxis);
+      svg.append('g').call(yAxis);
+
+      // legend
+      const legend = d3.select(legendId);
+      legend.selectAll('*').remove();
+      legend.selectAll('.legend-item').data(['Approved','Declined','Flag','Error']).join('div')
+        .attr('class','legend-item')
+        .html(d=>`<span class="swatch" style="background:${statusColors.get(d)}"></span>${d}`);
+    }
+
+    /**********************
+     * MULTI-FLAG CHART    *
+     **********************/
+    function renderMultiFlag(data){
+      const cont = d3.select('#multiFlagChart'); cont.selectAll('*').remove();
+      const width = cont.node().clientWidth || 600; const height = 260; const m={top:20,right:12,bottom:28,left:40};
+      const buckets = d3.rollups(data, v=>v.length, d=> Math.min(5, d.flags_count)) // 5 = 5+
+        .map(([k,v])=>({flags: k, count: v}))
+        .sort((a,b)=>d3.ascending(a.flags,b.flags));
+      const x = d3.scaleBand(buckets.map(d=> d.flags===5? '5+': String(d.flags)), [m.left, width-m.right]).padding(0.2);
+      const y = d3.scaleLinear([0, d3.max(buckets, d=>d.count)||1], [height-m.bottom, m.top]);
+      const svg = cont.append('svg').attr('width', width).attr('height', height);
+      svg.append('g').selectAll('rect').data(buckets).join('rect')
+        .attr('x', d=>x(d.flags===5?'5+':String(d.flags)))
+        .attr('width', x.bandwidth())
+        .attr('y', d=>y(d.count))
+        .attr('height', d=>y(0)-y(d.count))
+        .attr('fill', '#f59e0b')
+        .on('mousemove', (e,d)=> showTip(`${d.flags===5?'5+':d.flags} flag(s): ${fmt(d.count)} claims`, e.pageX, e.pageY))
+        .on('mouseleave', hideTip);
+      svg.append('g').attr('transform',`translate(0,${height-m.bottom})`).call(d3.axisBottom(x));
+      svg.append('g').attr('transform',`translate(${m.left},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(d3.format(',')));
+    }
+
+    /**********************
+     * HOSPITAL HEATMAP    *
+     **********************/
+    function renderHospitalHeat(data){
+      const cont = d3.select('#hospitalHeat'); cont.selectAll('*').remove();
+      const width = cont.node().clientWidth || 600; const height = 260; const m={top:20,right:12,bottom:28,left:80};
+      const agg = d3.rollups(data,
+        v=>({ total: v.length, flagged: v.filter(d=>d.engine_decision==='Flag').length }),
+        d=> d.hospital
+      ).map(([h, o])=> ({ hospital:h, rate: o.flagged / Math.max(1,o.total), total:o.total }));
+      const top = agg.sort((a,b)=> d3.descending(a.rate,b.rate)).slice(0, 12).reverse();
+      const x = d3.scaleLinear([0,1],[m.left,width-m.right]);
+      const y = d3.scaleBand(top.map(d=>d.hospital), [height-m.bottom, m.top]).padding(0.2);
+      const svg = cont.append('svg').attr('width', width).attr('height', height);
+      const color = d3.scaleSequential(d3.interpolateTurbo).domain([0,1]);
+      svg.append('g').selectAll('rect').data(top).join('rect')
+        .attr('x', x(0)).attr('y', d=>y(d.hospital))
+        .attr('width', d=> x(d.rate)-x(0))
+        .attr('height', y.bandwidth())
+        .attr('fill', d=> color(d.rate))
+        .on('mousemove', (e,d)=> showTip(`${d.hospital}<br/>Flag rate: ${(d.rate*100).toFixed(1)}%<br/>Claims: ${fmt(d.total)}`, e.pageX, e.pageY))
+        .on('mouseleave', hideTip);
+      svg.append('g').attr('transform',`translate(0,${height-m.bottom})`).call(d3.axisBottom(x).tickFormat(d=> (d*100)+'%'));
+      svg.append('g').attr('transform',`translate(${m.left},0)`).call(d3.axisLeft(y));
+    }
+
+    /**********************
+     * RULES CHARTS        *
+     **********************/
+    function renderRuleFlagChart(data){
+      const cont = d3.select('#ruleFlagChart'); cont.selectAll('*').remove();
+      const width = cont.node().clientWidth || 600; const height = 300; const m={top:20,right:12,bottom:90,left:56};
+      const agg = d3.rollups(data, v=> v.filter(d=>d.engine_decision==='Flag').length, d=> d.rule)
+        .map(([rule, count])=>({rule, count}))
+        .sort((a,b)=> d3.descending(a.count,b.count)).slice(0, 15);
+      const x = d3.scaleBand(agg.map(d=>d.rule), [m.left, width-m.right]).padding(0.2);
+      const y = d3.scaleLinear([0, d3.max(agg, d=>d.count)||1], [height-m.bottom, m.top]);
+      const svg = cont.append('svg').attr('width', width).attr('height', height);
+      svg.append('g').selectAll('rect').data(agg).join('rect')
+        .attr('x', d=>x(d.rule)).attr('width', x.bandwidth())
+        .attr('y', d=>y(d.count)).attr('height', d=>y(0)-y(d.count))
+        .attr('fill', '#f59e0b')
+        .on('mousemove', (e,d)=> showTip(`<b>${d.rule}</b><br/>Flagged: ${fmt(d.count)}`, e.pageX, e.pageY))
+        .on('mouseleave', hideTip);
+      svg.append('g').attr('transform',`translate(0,${height-m.bottom})`).call(d3.axisBottom(x)).selectAll('text')
+        .attr('transform','rotate(-35)')
+        .style('text-anchor','end');
+      svg.append('g').attr('transform',`translate(${m.left},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(d3.format(',')));
+    }
+
+    function renderRuleOutcomeChart(data){
+      const cont = d3.select('#ruleOutcomeChart'); cont.selectAll('*').remove();
+      const width = cont.node().clientWidth || 600; const height = 300; const m={top:20,right:12,bottom:28,left:56};
+      const agg = d3.rollups(data,
+        v=>({
+          Approved: v.filter(d=>d.engine_decision==='Approved').length,
+          Declined: v.filter(d=>d.engine_decision==='Declined').length,
+          Flag: v.filter(d=>d.engine_decision==='Flag').length,
+          Error: v.filter(d=>d.engine_decision==='Error').length,
+        }), d=> d.rule
+      ).map(([rule, o])=> ({rule, ...o}))
+       .sort((a,b)=> d3.descending(a.Approved+a.Declined+a.Flag+a.Error, b.Approved+b.Declined+b.Flag+b.Error))
+       .slice(0,8);
+
+      const keys = ['Approved','Declined','Flag','Error'];
+      const x = d3.scaleBand(agg.map(d=>d.rule), [m.left, width-m.right]).padding(0.2);
+      const y = d3.scaleLinear([0, d3.max(agg, d=> keys.reduce((s,k)=>s+d[k],0))||1], [height-m.bottom, m.top]);
+      const color = d3.scaleOrdinal().domain(keys).range(keys.map(k=> statusColors.get(k)));
+
+      const svg = cont.append('svg').attr('width', width).attr('height', height);
+      const stack = d3.stack().keys(keys)(agg);
+      svg.append('g').selectAll('g').data(stack).join('g')
+        .attr('fill', d=> color(d.key))
+        .selectAll('rect').data(d=>d).join('rect')
+          .attr('x', d=> x(d.data.rule))
+          .attr('y', d=> y(d[1]))
+          .attr('height', d=> y(d[0]) - y(d[1]))
+          .attr('width', x.bandwidth())
+          .on('mousemove', (e,d)=>{
+            const key = d3.select(e.currentTarget.parentNode).datum().key;
+            showTip(`<b>${d.data.rule}</b><br/>${key}: ${fmt(d[1]-d[0])}`, e.pageX, e.pageY);
+          })
+          .on('mouseleave', hideTip);
+
+      svg.append('g').attr('transform',`translate(0,${height-m.bottom})`).call(d3.axisBottom(x)).selectAll('text')
+        .attr('transform','rotate(-30)').style('text-anchor','end');
+      svg.append('g').attr('transform',`translate(${m.left},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(d3.format(',')));
+
+      // legend
+      const legend = d3.select('#ruleOutcomeChart').append('div').attr('class','legend');
+      legend.selectAll('.legend-item').data(keys).join('div')
+        .attr('class','legend-item')
+        .html(d=>`<span class="swatch" style="background:${color(d)}"></span>${d}`);
+    }
+
+    /**********************
+     * SANKEY & SAVINGS    *
+     **********************/
+    function renderSankey(data){
+      const cont = d3.select('#sankey'); cont.selectAll('*').remove();
+      const width = cont.node().clientWidth || 700; const height = 360;
+
+      const nodes = [
+        {name:'Engine: Approved'}, {name:'Engine: Declined'}, {name:'Engine: Flag'}, {name:'Engine: Error'},
+        {name:'Assessor: Approved'}, {name:'Assessor: Declined'}, {name:'Assessor: Flag'}, {name:'Assessor: Error'}
+      ];
+      const nodeIndex = new Map(nodes.map((n,i)=>[n.name,i]));
+
+      function linkVal(engine, assessor){
+        return data.filter(d=> d.engine_decision===engine && d.assessor_decision===assessor).length;
+      }
+      const pairs = [
+        ['Approved','Approved'], ['Approved','Declined'], ['Approved','Flag'], ['Approved','Error'],
+        ['Declined','Approved'], ['Declined','Declined'], ['Declined','Flag'], ['Declined','Error'],
+        ['Flag','Approved'], ['Flag','Declined'], ['Flag','Flag'], ['Flag','Error'],
+        ['Error','Approved'], ['Error','Declined'], ['Error','Flag'], ['Error','Error']
+      ];
+      const links = pairs.map(([e,a])=> ({
+        source: nodeIndex.get('Engine: '+e), target: nodeIndex.get('Assessor: '+a), value: linkVal(e,a)
+      })).filter(l=> l.value>0);
+
+      const svg = cont.append('svg').attr('width', width).attr('height', height);
+      const {sankey, sankeyLinkHorizontal} = d3;
+      const sk = d3.sankey()
+        .nodeWidth(12)
+        .nodePadding(14)
+        .extent([[10, 10], [width-10, height-10]]);
+
+      const graph = sk({nodes: nodes.map(d=>({...d})), links: links.map(d=>({...d}))});
+
+      const color = d3.scaleOrdinal()
+        .domain(nodes.map(n=>n.name))
+        .range(['#22c55e','#ef4444','#f59e0b','#64748b','#22c55e','#ef4444','#f59e0b','#64748b']);
+
+      svg.append('g').selectAll('path').data(graph.links).join('path')
+        .attr('d', d3.sankeyLinkHorizontal())
+        .attr('stroke', d=> color(graph.nodes[d.source.index].name))
+        .attr('stroke-width', d=> Math.max(1, d.width))
+        .attr('fill','none')
+        .attr('opacity', 0.6)
+        .on('mousemove', (e,d)=> {
+          const s = graph.nodes[d.source.index].name; const t = graph.nodes[d.target.index].name;
+          showTip(`<b>${s} → ${t}</b><br/>Claims: ${fmt(d.value)}`, e.pageX, e.pageY);
+        })
+        .on('mouseleave', hideTip);
+
+      const node = svg.append('g').selectAll('g').data(graph.nodes).join('g');
+      node.append('rect')
+        .attr('x', d=>d.x0).attr('y', d=>d.y0)
+        .attr('width', d=>d.x1-d.x0).attr('height', d=>Math.max(1, d.y1-d.y0))
+        .attr('fill', d=> color(d.name));
+      node.append('text')
+        .attr('x', d=> d.x0 < width/2 ? d.x1 + 6 : d.x0 - 6)
+        .attr('y', d=> (d.y1 + d.y0)/2)
+        .attr('dy', '0.35em')
+        .attr('text-anchor', d=> d.x0 < width/2 ? 'start' : 'end')
+        .attr('fill', '#cbd5e1')
+        .text(d=> `${d.name} (${fmt(d.value)})`);
+    }
+
+    function renderSavings(data){
+      const cont = d3.select('#savingsChart'); cont.selectAll('*').remove();
+      const width = cont.node().clientWidth || 600; const height = 360; const m={top:20,right:12,bottom:28,left:56};
+      // monthly compare: use potential_saving (engine), and an assessor proxy (engine minus disagreements where assessor approved)
+      const month = d3.timeFormat('%Y-%m');
+      const groups = d3.rollups(data,
+        v=>({
+          engine: d3.sum(v, d=> d.potential_saving),
+          assessor: d3.sum(v, d=> (d.assessor_decision==='Declined' ? d.billed*0.5 : d.assessor_decision==='Flag' ? d.billed*0.2 : 0))
+        }),
+        d=> month(d.date)
+      ).map(([k,o])=> ({month:k, ...o})).sort((a,b)=> d3.ascending(a.month,b.month));
+
+      const x = d3.scaleBand(groups.map(d=>d.month), [m.left, width-m.right]).padding(0.2);
+      const y = d3.scaleLinear([0, d3.max(groups, d=> Math.max(d.engine, d.assessor))||1], [height-m.bottom, m.top]);
+
+      const svg = cont.append('svg').attr('width', width).attr('height', height);
+      const g = svg.append('g');
+
+      g.selectAll('.bar.engine').data(groups).join('rect')
+        .attr('class','bar engine')
+        .attr('x', d=> x(d.month))
+        .attr('width', x.bandwidth()/2 - 3)
+        .attr('y', d=> y(d.engine))
+        .attr('height', d=> y(0)-y(d.engine))
+        .attr('fill', '#22c55e')
+        .on('mousemove', (e,d)=> showTip(`<b>${d.month}</b><br/>Engine Savings: ${currency(d.engine)}`, e.pageX, e.pageY))
+        .on('mouseleave', hideTip);
+
+      g.selectAll('.bar.assessor').data(groups).join('rect')
+        .attr('class','bar assessor')
+        .attr('x', d=> x(d.month) + x.bandwidth()/2 + 3)
+        .attr('width', x.bandwidth()/2 - 3)
+        .attr('y', d=> y(d.assessor))
+        .attr('height', d=> y(0)-y(d.assessor))
+        .attr('fill', '#60a5fa')
+        .on('mousemove', (e,d)=> showTip(`<b>${d.month}</b><br/>Assessor Savings: ${currency(d.assessor)}`, e.pageX, e.pageY))
+        .on('mouseleave', hideTip);
+
+      svg.append('g').attr('transform',`translate(0,${height-m.bottom})`).call(d3.axisBottom(x));
+      svg.append('g').attr('transform',`translate(${m.left},0)`).call(d3.axisLeft(y).ticks(5).tickFormat(d=> '$' + d3.format(',')(Math.round(d))));
+
+      const legend = d3.select('#savingsChart').append('div').attr('class','legend');
+      legend.selectAll('.legend-item').data(['Engine Savings','Assessor Savings']).join('div')
+        .attr('class','legend-item')
+        .html((d,i)=>`<span class="swatch" style="background:${i===0?'#22c55e':'#60a5fa'}"></span>${d}`);
+    }
+
+    /**********************
+     * HOSPITAL TABLE      *
+     **********************/
+    function renderHospitalTable(data){
+      const agg = d3.rollups(data,
+        v=>({
+          total: v.length,
+          flagged: v.filter(d=>d.engine_decision==='Flag').length,
+          approved: v.filter(d=>d.engine_decision==='Approved').length,
+          declined: v.filter(d=>d.engine_decision==='Declined').length,
+          errors: v.filter(d=>d.engine_decision==='Error').length,
+          billed: d3.sum(v, d=>d.billed),
+          saving: d3.sum(v, d=>d.potential_saving)
+        }),
+        d=> d.hospital
+      ).map(([hospital, o])=> ({hospital, ...o, rate: o.flagged/Math.max(1,o.total)}))
+       .sort((a,b)=> d3.descending(a.total,b.total));
+
+      const tbody = d3.select('#hospitalTable tbody');
+      tbody.selectAll('tr').remove();
+      const rows = tbody.selectAll('tr').data(agg).join('tr');
+      rows.html(d=> `
+        <td>${d.hospital}</td>
+        <td>${fmt(d.total)}</td>
+        <td>${fmt(d.flagged)}</td>
+        <td>${fmt(d.approved)}</td>
+        <td>${fmt(d.declined)}</td>
+        <td>${fmt(d.errors)}</td>
+        <td>${(d.rate*100).toFixed(1)}%</td>
+        <td>${currency(d.billed)}</td>
+        <td>${currency(d.saving)}</td>
+      `);
+    }
+
+    /**********************
+     * EXPORTS             *
+     **********************/
+    function toCSV(rows){
+      const esc = (v)=> '"' + String(v).replaceAll('"','""') + '"';
+      const headers = Object.keys(rows[0]||{});
+      const lines = [headers.join(',')].concat(rows.map(r=> headers.map(h=> esc(r[h] ?? '')).join(',')));
+      return lines.join('\n');
+    }
+
+    function exportClaims(){
+      const data = filteredClaims().map(d=> ({
+        id: d.id,
+        date: fmtDate(d.date),
+        hospital: d.hospital,
+        billed: d.billed,
+        engine_decision: d.engine_decision,
+        assessor_decision: d.assessor_decision,
+        flags_count: d.flags_count,
+        rule: d.rule,
+        potential_saving: d.potential_saving,
+        error: d.error
+      }));
+      const blob = new Blob([toCSV(data)], {type:'text/csv;charset=utf-8;'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'claims_export.csv'; a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    function exportHosp(){
+      const data = d3.rollups(filteredClaims(),
+        v=>({
+          total: v.length,
+          flagged: v.filter(d=>d.engine_decision==='Flag').length,
+          approved: v.filter(d=>d.engine_decision==='Approved').length,
+          declined: v.filter(d=>d.engine_decision==='Declined').length,
+          errors: v.filter(d=>d.engine_decision==='Error').length,
+          billed: d3.sum(v, d=>d.billed),
+          saving: d3.sum(v, d=>d.potential_saving),
+          flag_rate: (v.filter(d=>d.engine_decision==='Flag').length/Math.max(1,v.length))
+        }), d=> d.hospital
+      ).map(([hospital,o])=>({hospital, ...o}));
+      const blob = new Blob([toCSV(data)], {type:'text/csv;charset=utf-8;'});
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'hospital_summary_export.csv'; a.click();
+      URL.revokeObjectURL(a.href);
+    }
+
+    document.getElementById('exportClaims').addEventListener('click', exportClaims);
+    document.getElementById('exportHosp').addEventListener('click', exportHosp);
+
+    /**********************
+     * MASTER RENDER       *
+     **********************/
+    function renderAll(){
+      const data = filteredClaims();
+      // KPIs
+      renderKPIs(data);
+      // Stacked charts
+      renderStacked('#volChart', '#volLegend', data, d=>1, 'Claims');
+      renderStacked('#amtChart', '#amtLegend', data, d=>d.billed, 'Billed Amount');
+      // others
+      renderMultiFlag(data);
+      renderHospitalHeat(data);
+      renderRuleFlagChart(data);
+      renderRuleOutcomeChart(data);
+      renderSankey(data);
+      renderSavings(data);
+      renderHospitalTable(data);
+    }
+
+    // initial render
+    renderAll();
+  </script>
+</body>
+</html>

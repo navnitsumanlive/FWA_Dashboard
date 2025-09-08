@@ -1,0 +1,2022 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Healthcare Claim Processing Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://d3js.org/d3.v7.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --secondary: #3498db;
+            --success: #2ecc71;
+            --danger: #e74c3c;
+            --warning: #f39c12;
+            --info: #1abc9c;
+            --light: #ecf0f1;
+            --dark: #34495e;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
+        }
+        
+        .dashboard-header {
+            background-color: var(--primary);
+            color: white;
+            padding: 1rem;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .nav-tabs .nav-link {
+            color: var(--dark);
+            font-weight: 500;
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: var(--primary);
+            font-weight: 600;
+            border-bottom: 3px solid var(--primary);
+        }
+        
+        .kpi-card {
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+            transition: transform 0.2s;
+            height: 100%;
+        }
+        
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0,0,0,0.1);
+        }
+        
+        .kpi-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        
+        .data-table {
+            font-size: 0.9rem;
+        }
+        
+        .flag-high {
+            background-color: rgba(231, 76, 60, 0.2);
+        }
+        
+        .flag-medium {
+            background-color: rgba(243, 156, 18, 0.2);
+        }
+        
+        .flag-low {
+            background-color: rgba(46, 204, 113, 0.2);
+        }
+        
+        .tab-content {
+            padding: 20px 0;
+        }
+        
+        .filter-section {
+            background: white;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        }
+        
+        .rule-detail {
+            border-left: 4px solid var(--secondary);
+            padding-left: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .rule-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 15px 0;
+        }
+        
+        .metric-card {
+            background: var(--light);
+            padding: 15px;
+            border-radius: 6px;
+            text-align: center;
+        }
+        
+        .metric-value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .rule-chart {
+            height: 200px;
+            margin: 20px 0;
+        }
+        
+        .modal-content {
+            border-radius: 10px;
+            overflow: hidden;
+        }
+        
+        .modal-header {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .savings-definition {
+            cursor: pointer;
+            color: var(--secondary);
+            text-decoration: underline dotted;
+        }
+        
+        #sankeyChart {
+            width: 100%;
+            height: 400px;
+            background: white;
+            border-radius: 8px;
+        }
+        
+        .hospital-bubble {
+            fill: #3498db;
+            fill-opacity: 0.7;
+            stroke: #fff;
+            stroke-width: 1.5px;
+        }
+        
+        .hospital-bubble:hover {
+            fill-opacity: 0.9;
+        }
+        
+        .hospital-label {
+            font-size: 10px;
+            text-anchor: middle;
+            pointer-events: none;
+        }
+        
+        .performance-metric-card {
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .performance-metric-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .treemap-cell {
+            stroke: #fff;
+        }
+        
+        .treemap-label {
+            font-size: 10px;
+            text-anchor: middle;
+            pointer-events: none;
+            fill: #fff;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard-header mb-4">
+        <div class="container">
+            <h1 class="h3">Healthcare Claim Processing Dashboard</h1>
+            <p class="mb-0">Monitor and analyze claim processing performance</p>
+        </div>
+    </div>
+
+    <div class="container">
+        <ul class="nav nav-tabs" id="dashboardTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="summary-tab" data-bs-toggle="tab" data-bs-target="#summary" type="button" role="tab">Summary</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="rules-tab" data-bs-toggle="tab" data-bs-target="#rules" type="button" role="tab">Rule Engine</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="performance-tab" data-bs-toggle="tab" data-bs-target="#performance" type="button" role="tab">Performance</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="flags-tab" data-bs-toggle="tab" data-bs-target="#flags" type="button" role="tab">Flag Analysis</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="hospitals-tab" data-bs-toggle="tab" data-bs-target="#hospitals" type="button" role="tab">Hospital View</button>
+            </li>
+        </ul>
+
+        <div class="tab-content" id="dashboardTabContent">
+            <!-- Summary Tab -->
+            <div class="tab-pane fade show active" id="summary" role="tabpanel">
+                <div class="filter-section mb-4">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <label for="dateRange" class="form-label">Date Range</label>
+                            <select class="form-select" id="dateRange">
+                                <option selected>Last 30 days</option>
+                                <option>Last 60 days</option>
+                                <option>Last 90 days</option>
+                                <option>Year to Date</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="claimType" class="form-label">Claim Type</label>
+                            <select class="form-select" id="claimType">
+                                <option selected>All Types</option>
+                                <option>Inpatient</option>
+                                <option>Outpatient</option>
+                                <option>Pharmacy</option>
+                                <option>Emergency</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="insuranceType" class="form-label">Insurance Type</label>
+                            <select class="form-select" id="insuranceType">
+                                <option selected>All Types</option>
+                                <option>Commercial</option>
+                                <option>Medicare</option>
+                                <option>Medicaid</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label for="provider" class="form-label">Provider</label>
+                            <select class="form-select" id="provider">
+                                <option selected>All Providers</option>
+                                <option>Hospital System A</option>
+                                <option>Hospital System B</option>
+                                <option>Clinic Network C</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-3">
+                        <div class="kpi-card card">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Total Claims</h5>
+                                <div class="kpi-value text-primary">12,487</div>
+                                <p class="card-text">Processed by Engine</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="kpi-card card">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">True Positive Rate</h5>
+                                <div class="kpi-value text-info">89.2%</div>
+                                <p class="card-text">Assessor & Engine Alignment</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="kpi-card card">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Identified Savings</h5>
+                                <div class="kpi-value text-success">$2.84M</div>
+                                <p class="card-text">Potential Cost Avoidance</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="kpi-card card">
+                            <div class="card-body text-center">
+                                <h5 class="card-title">Realized Savings</h5>
+                                <div class="kpi-value text-success">$1.92M</div>
+                                <p class="card-text">Actual Cost Reduction</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h5>Claims by Status</h5>
+                            <canvas id="claimsStatusChart"></canvas>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h5>Billed Amount by Status</h5>
+                            <canvas id="billedAmountChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="chart-container">
+                            <h5>Daily Claims Trend</h5>
+                            <canvas id="dailyTrendChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Rule Engine Tab -->
+            <div class="tab-pane fade" id="rules" role="tabpanel">
+                <div class="filter-section mb-4">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="ruleCategory" class="form-label">Rule Category</label>
+                            <select class="form-select" id="ruleCategory">
+                                <option selected>All Categories</option>
+                                <option>Eligibility</option>
+                                <option>Medical Necessity</option>
+                                <option>Pricing</option>
+                                <option>Documentation</option>
+                                <option>Utilization</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="ruleStatus" class="form-label">Rule Status</label>
+                            <select class="form-select" id="ruleStatus">
+                                <option selected>All Statuses</option>
+                                <option>Active</option>
+                                <option>Inactive</option>
+                                <option>Pending Approval</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="chart-container">
+                            <h5>Rules Performance Overview</h5>
+                            <canvas id="rulesPerformanceChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title">Rule Details</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Rule ID</th>
+                                                <th>Rule Name</th>
+                                                <th>Category</th>
+                                                <th>Triggers</th>
+                                                <th>Success Rate</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>R-1024</td>
+                                                <td>Frequent OPD Utilization in 12 months</td>
+                                                <td>Utilization</td>
+                                                <td>1,248</td>
+                                                <td>92.3%</td>
+                                                <td><span class="badge bg-success">Active</span></td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#ruleModal" data-rule="opdUtilization">View</button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>R-1025</td>
+                                                <td>Frequent OPD Utilization primary in 12 months</td>
+                                                <td>Utilization</td>
+                                                <td>947</td>
+                                                <td>87.1%</td>
+                                                <td><span class="badge bg-success">Active</span></td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#ruleModal" data-rule="opdPrimary">View</button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>R-1026</td>
+                                                <td>Frequent IPD Utilization in 12 months</td>
+                                                <td>Utilization</td>
+                                                <td>842</td>
+                                                <td>96.5%</td>
+                                                <td><span class="badge bg-success">Active</span></td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#ruleModal" data-rule="ipdUtilization">View</button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>R-1027</td>
+                                                <td>Room and board fee</td>
+                                                <td>Pricing</td>
+                                                <td>3,472</td>
+                                                <td>78.2%</td>
+                                                <td><span class="badge bg-success">Active</span></td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#ruleModal" data-rule="roomBoard">View</button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>R-1028</td>
+                                                <td>Total claim amount</td>
+                                                <td>Pricing</td>
+                                                <td>5,128</td>
+                                                <td>83.7%</td>
+                                                <td><span class="badge bg-success">Active</span></td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#ruleModal" data-rule="totalClaim">View</button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>R-1029</td>
+                                                <td>Length of Stay</td>
+                                                <td>Utilization</td>
+                                                <td>2,156</td>
+                                                <td>91.2%</td>
+                                                <td><span class="badge bg-success">Active</span></td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#ruleModal" data-rule="lengthStay">View</button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>R-1030</td>
+                                                <td>Doctor attendance fee</td>
+                                                <td>Pricing</td>
+                                                <td>4,327</td>
+                                                <td>85.4%</td>
+                                                <td><span class="badge bg-success">Active</span></td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#ruleModal" data-rule="doctorFee">View</button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>R-1031</td>
+                                                <td>Surgery fee</td>
+                                                <td>Pricing</td>
+                                                <td>2,874</td>
+                                                <td>89.6%</td>
+                                                <td><span class="badge bg-success">Active</span></td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#ruleModal" data-rule="surgeryFee">View</button>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>R-1032</td>
+                                                <td>Implant fee</td>
+                                                <td>Pricing</td>
+                                                <td>1,543</td>
+                                                <td>93.1%</td>
+                                                <td><span class="badge bg-success">Active</span></td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#ruleModal" data-rule="implantFee">View</button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Tab -->
+            <div class="tab-pane fade" id="performance" role="tabpanel">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h5>Engine vs Assessor Decisions</h5>
+                            <div id="sankeyChart"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h5>Savings Analysis 
+                                <span class="savings-definition" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                    title="Identified Savings: Potential savings from rule triggers. Realized Savings: Actual savings after manual review.">
+                                    ⓘ
+                                </span>
+                            </h5>
+                            <canvas id="savingsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <h4 class="mb-3">Performance Metrics</h4>
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <div class="card performance-metric-card" data-bs-toggle="modal" data-bs-target="#metricModal" data-metric="accuracy">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">Accuracy Rate</h5>
+                                        <div class="kpi-value text-primary">94.7%</div>
+                                        <p class="card-text">Engine vs Assessor</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card performance-metric-card" data-bs-toggle="modal" data-bs-target="#metricModal" data-metric="efficiency">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">Efficiency Gain</h5>
+                                        <div class="kpi-value text-success">72.4%</div>
+                                        <p class="card-text">Time Reduction</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card performance-metric-card" data-bs-toggle="modal" data-bs-target="#metricModal" data-metric="falsePositive">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">False Positive Rate</h5>
+                                        <div class="kpi-value text-warning">8.8%</div>
+                                        <p class="card-text">Incorrect Flags</p>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <div class="card performance-metric-card" data-bs-toggle="modal" data-bs-target="#metricModal" data-metric="savingsRate">
+                                    <div class="card-body text-center">
+                                        <h5 class="card-title">Savings Rate</h5>
+                                        <div class="kpi-value text-info">67.6%</div>
+                                        <p class="card-text">Identified to Realized</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title">Detailed Performance Metrics</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Metric</th>
+                                                <th>Engine Decision</th>
+                                                <th>Assessor Decision</th>
+                                                <th>Alignment Rate</th>
+                                                <th>Variance</th>
+                                                <th>Impact</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>Approval Rate</td>
+                                                <td>71.4%</td>
+                                                <td>68.2%</td>
+                                                <td>94.7%</td>
+                                                <td class="text-success">+3.2%</td>
+                                                <td class="text-success">$142K Saved</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Rejection Rate</td>
+                                                <td>17.5%</td>
+                                                <td>19.8%</td>
+                                                <td>91.2%</td>
+                                                <td class="text-danger">-2.3%</td>
+                                                <td class="text-success">$87K Saved</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Flag Rate</td>
+                                                <td>11.1%</td>
+                                                <td>12.0%</td>
+                                                <td>89.4%</td>
+                                                <td class="text-danger">-0.9%</td>
+                                                <td class="text-warning">Needs Review</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Average Processing Time</td>
+                                                <td>2.4 min</td>
+                                                <td>8.7 min</td>
+                                                <td>72.4%</td>
+                                                <td class="text-success">-6.3 min</td>
+                                                <td class="text-success">Efficiency Gain</td>
+                                            </tr>
+                                            <tr>
+                                                <td>Error Rate</td>
+                                                <td>1.2%</td>
+                                                <td>3.8%</td>
+                                                <td>68.4%</td>
+                                                <td class="text-success">-2.6%</td>
+                                                <td class="text-success">Quality Improvement</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Flag Analysis Tab -->
+            <div class="tab-pane fade" id="flags" role="tabpanel">
+                <div class="row mb-4">
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h5>Claims by Number of Flags</h5>
+                            <div id="treemapChart"></div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="chart-container">
+                            <h5>Flag Types Distribution</h5>
+                            <canvas id="flagTypeChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title">Claims with Multiple Flags</h5>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Claim ID</th>
+                                                <th>Provider</th>
+                                                <th>Billed Amount</th>
+                                                <th>Flag Count</th>
+                                                <th>Flag Types</th>
+                                                <th>Status</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr class="flag-high">
+                                                <td>CL-78945</td>
+                                                <td>City General Hospital</td>
+                                                <td>$12,450</td>
+                                                <td>4</td>
+                                                <td>Duplicate, Out-of-Network, Upcoding, Documentation</td>
+                                                <td><span class="badge bg-danger">Rejected</span></td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#claimReviewModal">Review</button>
+                                                </td>
+                                            </tr>
+                                            <tr class="flag-high">
+                                                <td>CL-78932</td>
+                                                <td>Regional Medical Center</td>
+                                                <td>$8,720</td>
+                                                <td>3</td>
+                                                <td>Medical Necessity, Experimental, Pricing</td>
+                                                <td><span class="badge bg-warning">Under Review</span></td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#claimReviewModal">Review</button>
+                                                </td>
+                                            </tr>
+                                            <tr class="flag-medium">
+                                                <td>CL-78891</td>
+                                                <td>Community Clinic</td>
+                                                <td>$3,240</td>
+                                                <td>2</td>
+                                                <td>Documentation, Eligibility</td>
+                                                <td><span class="badge bg-success">Approved</span></td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#claimReviewModal">Review</button>
+                                                </td>
+                                            </tr>
+                                            <tr class="flag-medium">
+                                                <td>CL-78875</td>
+                                                <td>Specialty Surgical Center</td>
+                                                <td>$15,800</td>
+                                                <td>2</td>
+                                                <td>Upcoding, Out-of-Network</td>
+                                                <td><span class="badge bg-warning">Under Review</span></td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#claimReviewModal">Review</button>
+                                                </td>
+                                            </tr>
+                                            <tr class="flag-low">
+                                                <td>CL-78842</td>
+                                                <td>University Hospital</td>
+                                                <td>$6,540</td>
+                                                <td>1</td>
+                                                <td>Documentation</td>
+                                                <td><span class="badge bg-success">Approved</span></td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#claimReviewModal">Review</button>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hospital View Tab -->
+            <div class="tab-pane fade" id="hospitals" role="tabpanel">
+                <div class="filter-section mb-4">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <label for="hospitalRegion" class="form-label">Region</label>
+                            <select class="form-select" id="hospitalRegion">
+                                <option selected>All Regions</option>
+                                <option>Northeast</option>
+                                <option>Midwest</option>
+                                <option>South</option>
+                                <option>West</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="hospitalMetric" class="form-label">Primary Metric</label>
+                            <select class="form-select" id="hospitalMetric">
+                                <option selected>Claim Volume</option>
+                                <option>Billed Amount</option>
+                                <option>Approval Rate</option>
+                                <option>Rejection Rate</option>
+                                <option>Flag Rate</option>
+                                <option>Savings Potential</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="hospitalSize" class="form-label">Hospital Size</label>
+                            <select class="form-select" id="hospitalSize">
+                                <option selected>All Sizes</option>
+                                <option>Small (&lt;100 beds)</option>
+                                <option>Medium (100-400 beds)</option>
+                                <option>Large (&gt;400 beds)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-md-12">
+                        <div class="chart-container">
+                            <h5>Hospital Performance Overview</h5>
+                            <div id="bubbleChart"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h5 class="card-title mb-0">Hospital-Level Metrics</h5>
+                                <div>
+                                    <button class="btn btn-sm btn-outline-secondary">Export</button>
+                                </div>
+                            </div>
+                            <div class="card-body">
+                                <div class="table-responsive">
+                                    <table class="table table-hover data-table">
+                                        <thead>
+                                            <tr>
+                                                <th>Hospital</th>
+                                                <th>Region</th>
+                                                <th>Claims</th>
+                                                <th>Billed Amount</th>
+                                                <th>Approved</th>
+                                                <th>Rejected</th>
+                                                <th>Flagged</th>
+                                                <th>Avg Processing Time</th>
+                                                <th>Performance Score</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            <tr>
+                                                <td>City General Hospital</td>
+                                                <td>Northeast</td>
+                                                <td>2,845</td>
+                                                <td>$4.2M</td>
+                                                <td>68.2%</td>
+                                                <td>19.4%</td>
+                                                <td>12.4%</td>
+                                                <td>2.8 min</td>
+                                                <td>
+                                                    <div class="progress" style="height: 10px;">
+                                                        <div class="progress-bar bg-warning" role="progressbar" style="width: 72%"></div>
+                                                    </div>
+                                                    <small>72%</small>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>Regional Medical Center</td>
+                                                <td>South</td>
+                                                <td>3,421</td>
+                                                <td>$5.8M</td>
+                                                <td>74.5%</td>
+                                                <td>15.8%</td>
+                                                <td>9.7%</td>
+                                                <td>2.1 min</td>
+                                                <td>
+                                                    <div class="progress" style="height: 10px;">
+                                                        <div class="progress-bar bg-success" role="progressbar" style="width: 88%"></div>
+                                                    </div>
+                                                    <small>88%</small>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>Community Clinic</td>
+                                                <td>Midwest</td>
+                                                <td>1,572</td>
+                                                <td>$1.4M</td>
+                                                <td>81.3%</td>
+                                                <td>12.1%</td>
+                                                <td>6.6%</td>
+                                                <td>1.9 min</td>
+                                                <td>
+                                                    <div class="progress" style="height: 10px;">
+                                                        <div class="progress-bar bg-success" role="progressbar" style="width: 92%"></div>
+                                                    </div>
+                                                    <small>92%</small>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>Specialty Surgical Center</td>
+                                                <td>West</td>
+                                                <td>2,128</td>
+                                                <td>$3.7M</td>
+                                                <td>65.8%</td>
+                                                <td>22.4%</td>
+                                                <td>11.8%</td>
+                                                <td>3.2 min</td>
+                                                <td>
+                                                    <div class="progress" style="height: 10px;">
+                                                        <div class="progress-bar bg-danger" role="progressbar" style="width: 65%"></div>
+                                                    </div>
+                                                    <small>65%</small>
+                                                </td>
+                                            </tr>
+                                            <tr>
+                                                <td>University Hospital</td>
+                                                <td>Northeast</td>
+                                                <td>2,521</td>
+                                                <td>$4.5M</td>
+                                                <td>70.1%</td>
+                                                <td>18.2%</td>
+                                                <td>11.7%</td>
+                                                <td>2.5 min</td>
+                                                <td>
+                                                    <div class="progress" style="height: 10px;">
+                                                        <div class="progress-bar bg-warning" role="progressbar" style="width: 75%"></div>
+                                                    </div>
+                                                    <small>75%</small>
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rule Detail Modal -->
+    <div class="modal fade" id="ruleModal" tabindex="-1" aria-labelledby="ruleModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="ruleModalLabel">Rule Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="ruleDetailContent">
+                        <!-- Content will be dynamically inserted here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary">Edit Rule</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Performance Metric Modal -->
+    <div class="modal fade" id="metricModal" tabindex="-1" aria-labelledby="metricModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="metricModalLabel">Performance Metric Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="metricDetailContent">
+                        <!-- Content will be dynamically inserted here -->
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Claim Review Modal -->
+    <div class="modal fade" id="claimReviewModal" tabindex="-1" aria-labelledby="claimReviewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="claimReviewModalLabel">Claim Review Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Claim Information</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>Claim ID:</th>
+                                    <td>CL-78945</td>
+                                </tr>
+                                <tr>
+                                    <th>Provider:</th>
+                                    <td>City General Hospital</td>
+                                </tr>
+                                <tr>
+                                    <th>Billed Amount:</th>
+                                    <td>$12,450.00</td>
+                                </tr>
+                                <tr>
+                                    <th>Date of Service:</th>
+                                    <td>10/15/2023</td>
+                                </tr>
+                                <tr>
+                                    <th>Patient:</th>
+                                    <td>John D. (ID: P-23456)</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Flag Details</h6>
+                            <table class="table table-sm">
+                                <tr>
+                                    <th>Number of Flags:</th>
+                                    <td>4</td>
+                                </tr>
+                                <tr>
+                                    <th>Flag Types:</th>
+                                    <td>Duplicate, Out-of-Network, Upcoding, Documentation</td>
+                                </tr>
+                                <tr>
+                                    <th>Initial Decision:</th>
+                                    <td><span class="badge bg-danger">Rejected</span></td>
+                                </tr>
+                                <tr>
+                                    <th>Status:</th>
+                                    <td><span class="badge bg-warning">Under Review</span></td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6>Flag Analysis</h6>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="table-responsive">
+                                <table class="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Flag Type</th>
+                                            <th>Rule Triggered</th>
+                                            <th>Confidence Score</th>
+                                            <th>Suggested Action</th>
+                                            <th>Details</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>Duplicate</td>
+                                            <td>R-1042 - Duplicate Claim Detection</td>
+                                            <td>92%</td>
+                                            <td>Reject</td>
+                                            <td>Similar claim submitted on 10/12/2023 for same services</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Out-of-Network</td>
+                                            <td>R-1018 - Network Validation</td>
+                                            <td>87%</td>
+                                            <td>Review</td>
+                                            <td>Provider not in network for patient's plan</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Upcoding</td>
+                                            <td>R-1035 - Procedure Code Validation</td>
+                                            <td>79%</td>
+                                            <td>Review</td>
+                                            <td>Procedure code doesn't match diagnosis complexity</td>
+                                        </tr>
+                                        <tr>
+                                            <td>Documentation</td>
+                                            <td>R-1022 - Documentation Completeness</td>
+                                            <td>68%</td>
+                                            <td>Request Info</td>
+                                            <td>Missing operative report for surgical procedure</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <h6>Review Actions</h6>
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-success">Approve</button>
+                                <button class="btn btn-danger">Reject</button>
+                                <button class="btn btn-warning">Request Information</button>
+                                <button class="btn btn-info">Escalate</button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-12">
+                            <label for="reviewNotes" class="form-label">Review Notes</label>
+                            <textarea class="form-control" id="reviewNotes" rows="3"></textarea>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary">Save Review</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize tooltips
+            const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+            const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                return new bootstrap.Tooltip(tooltipTriggerEl);
+            });
+
+            // Claims Status Chart
+            const claimsStatusCtx = document.getElementById('claimsStatusChart').getContext('2d');
+            new Chart(claimsStatusCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Approved', 'Rejected', 'Flagged', 'Processing Error'],
+                    datasets: [{
+                        data: [8921, 2184, 1382, 0],
+                        backgroundColor: ['#2ecc71', '#e74c3c', '#f39c12', '#95a5a6'],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                        },
+                        datalabels: {
+                            color: '#fff',
+                            font: {
+                                weight: 'bold'
+                            },
+                            formatter: (value) => {
+                                return value > 0 ? ((value / 12487) * 100).toFixed(1) + '%' : '';
+                            }
+                        }
+                    }
+                },
+                plugins: [ChartDataLabels]
+            });
+
+            // Billed Amount Chart
+            const billedAmountCtx = document.getElementById('billedAmountChart').getContext('2d');
+            new Chart(billedAmountCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Approved', 'Rejected', 'Flagged', 'Processing Error'],
+                    datasets: [{
+                        label: 'Billed Amount ($)',
+                        data: [12500000, 3800000, 2700000, 0],
+                        backgroundColor: '#3498db',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + (value / 1000000).toFixed(1) + 'M';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Daily Trend Chart
+            const dailyTrendCtx = document.getElementById('dailyTrendChart').getContext('2d');
+            new Chart(dailyTrendCtx, {
+                type: 'line',
+                data: {
+                    labels: Array.from({length: 30}, (_, i) => `Day ${i+1}`),
+                    datasets: [{
+                        label: 'Total Claims',
+                        data: Array.from({length: 30}, () => Math.floor(Math.random() * 100) + 350),
+                        borderColor: '#3498db',
+                        tension: 0.3,
+                        fill: false
+                    }, {
+                        label: 'Approved',
+                        data: Array.from({length: 30}, () => Math.floor(Math.random() * 80) + 250),
+                        borderColor: '#2ecc71',
+                        tension: 0.3,
+                        fill: false
+                    }, {
+                        label: 'Rejected',
+                        data: Array.from({length: 30}, () => Math.floor(Math.random() * 30) + 50),
+                        borderColor: '#e74c3c',
+                        tension: 0.3,
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Rules Performance Chart
+            const rulesPerformanceCtx = document.getElementById('rulesPerformanceChart').getContext('2d');
+            new Chart(rulesPerformanceCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Eligibility', 'Medical Necessity', 'Pricing', 'Documentation', 'Coverage', 'Integrity', 'Utilization'],
+                    datasets: [{
+                        label: 'Triggers',
+                        data: [3240, 2850, 1920, 1560, 980, 1240, 2150],
+                        backgroundColor: '#3498db',
+                        borderWidth: 1
+                    }, {
+                        label: 'Success Rate',
+                        data: [94, 87, 83, 91, 78, 96, 89],
+                        type: 'line',
+                        borderColor: '#e74c3c',
+                        backgroundColor: 'rgba(0, 0, 0, 0)',
+                        yAxisID: 'y1',
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of Triggers'
+                            }
+                        },
+                        y1: {
+                            position: 'right',
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Success Rate (%)'
+                            },
+                            grid: {
+                                drawOnChartArea: false
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Create Sankey Diagram for Engine vs Assessor Decisions
+            function createSankeyDiagram() {
+                const width = 600;
+                const height = 400;
+                
+                // Select the container and clear any existing content
+                const container = d3.select("#sankeyChart");
+                container.html("");
+                
+                // Create SVG element
+                const svg = container.append("svg")
+                    .attr("width", "100%")
+                    .attr("height", "100%")
+                    .attr("viewBox", `0 0 ${width} ${height}`);
+                
+                // Define the nodes (decision points)
+                const nodes = [
+                    { name: "Engine Approve" },
+                    { name: "Engine Reject" },
+                    { name: "Engine Flag" },
+                    { name: "Assessor Approve" },
+                    { name: "Assessor Reject" },
+                    { name: "Assessor Flag" }
+                ];
+                
+                // Define the links (flows between decisions)
+                const links = [
+                    { source: 0, target: 3, value: 8120 }, // Engine Approve -> Assessor Approve
+                    { source: 0, target: 4, value: 560 },  // Engine Approve -> Assessor Reject
+                    { source: 0, target: 5, value: 241 },  // Engine Approve -> Assessor Flag
+                    { source: 1, target: 3, value: 320 },  // Engine Reject -> Assessor Approve
+                    { source: 1, target: 4, value: 1624 }, // Engine Reject -> Assessor Reject
+                    { source: 1, target: 5, value: 240 },  // Engine Reject -> Assessor Flag
+                    { source: 2, target: 3, value: 420 },  // Engine Flag -> Assessor Approve
+                    { source: 2, target: 4, value: 310 },  // Engine Flag -> Assessor Reject
+                    { source: 2, target: 5, value: 652 }   // Engine Flag -> Assessor Flag
+                ];
+                
+                // Calculate node positions
+                const nodeWidth = 20;
+                const nodePadding = 10;
+                const columnWidth = (width - nodeWidth * 2) / 2;
+                
+                nodes.forEach((node, i) => {
+                    node.x = i < 3 ? columnWidth / 2 : width - columnWidth / 2;
+                    node.y = (height / 3) * (i % 3) + height / 6;
+                });
+                
+                // Draw links
+                const link = svg.selectAll(".link")
+                    .data(links)
+                    .enter().append("path")
+                    .attr("class", "link")
+                    .attr("d", d => {
+                        const sourceX = nodes[d.source].x;
+                        const sourceY = nodes[d.source].y;
+                        const targetX = nodes[d.target].x;
+                        const targetY = nodes[d.target].y;
+                        
+                        return `M ${sourceX},${sourceY} C ${sourceX + columnWidth/2},${sourceY} ${targetX - columnWidth/2},${targetY} ${targetX},${targetY}`;
+                    })
+                    .style("fill", "none")
+                    .style("stroke", d => {
+                        const sourceName = nodes[d.source].name;
+                        if (sourceName.includes("Approve")) return "#2ecc71";
+                        if (sourceName.includes("Reject")) return "#e74c3c";
+                        return "#f39c12";
+                    })
+                    .style("stroke-width", d => Math.sqrt(d.value) / 10)
+                    .style("stroke-opacity", 0.6);
+                
+                // Draw nodes
+                const node = svg.selectAll(".node")
+                    .data(nodes)
+                    .enter().append("g")
+                    .attr("class", "node")
+                    .attr("transform", d => `translate(${d.x},${d.y})`);
+                
+                node.append("circle")
+                    .attr("r", 10)
+                    .style("fill", d => {
+                        if (d.name.includes("Approve")) return "#2ecc71";
+                        if (d.name.includes("Reject")) return "#e74c3c";
+                        return "#f39c12";
+                    });
+                
+                node.append("text")
+                    .attr("dy", -15)
+                    .attr("text-anchor", "middle")
+                    .text(d => d.name)
+                    .style("font-size", "10px")
+                    .style("fill", "#34495e");
+                
+                // Add value labels to links
+                link.append("title")
+                    .text(d => `${d.value} claims`);
+            }
+            
+            // Create Treemap for Claims by Number of Flags
+            function createTreemap() {
+                const width = 500;
+                const height = 300;
+                
+                // Select the container and clear any existing content
+                const container = d3.select("#treemapChart");
+                container.html("");
+                
+                // Create SVG element
+                const svg = container.append("svg")
+                    .attr("width", "100%")
+                    .attr("height", "100%")
+                    .attr("viewBox", `0 0 ${width} ${height}`);
+                
+                // Sample data
+                const data = {
+                    name: "flags",
+                    children: [
+                        { name: "1 Flag", value: 980, color: "#2ecc71" },
+                        { name: "2 Flags", value: 320, color: "#f39c12" },
+                        { name: "3 Flags", value: 65, color: "#e67e22" },
+                        { name: "4+ Flags", value: 17, color: "#e74c3c" }
+                    ]
+                };
+                
+                // Create treemap layout
+                const treemap = d3.treemap()
+                    .size([width, height])
+                    .padding(1)
+                    .round(true);
+                
+                const root = d3.hierarchy(data)
+                    .sum(d => d.value)
+                    .sort((a, b) => b.value - a.value);
+                
+                treemap(root);
+                
+                // Draw cells
+                const cell = svg.selectAll("g")
+                    .data(root.leaves())
+                    .enter().append("g")
+                    .attr("transform", d => `translate(${d.x0},${d.y0})`);
+                
+                cell.append("rect")
+                    .attr("width", d => d.x1 - d.x0)
+                    .attr("height", d => d.y1 - d.y0)
+                    .attr("class", "treemap-cell")
+                    .attr("fill", d => d.data.color);
+                
+                cell.append("text")
+                    .attr("class", "treemap-label")
+                    .attr("x", d => (d.x1 - d.x0) / 2)
+                    .attr("y", d => (d.y1 - d.y0) / 2)
+                    .attr("dy", "0.35em")
+                    .text(d => `${d.data.name}: ${d.data.value} claims`);
+            }
+            
+            // Create Bubble Chart for Hospital View
+            function createBubbleChart() {
+                const width = 800;
+                const height = 400;
+                const padding = 40;
+                
+                // Select the container and clear any existing content
+                const container = d3.select("#bubbleChart");
+                container.html("");
+                
+                // Create SVG element
+                const svg = container.append("svg")
+                    .attr("width", "100%")
+                    .attr("height", "100%")
+                    .attr("viewBox", `0 0 ${width} ${height}`);
+                
+                // Sample data for hospitals
+                const hospitals = [
+                    { name: "City General", claims: 2845, approvalRate: 68.2, savings: 142000, region: "Northeast" },
+                    { name: "Regional Medical", claims: 3421, approvalRate: 74.5, savings: 215000, region: "South" },
+                    { name: "Community Clinic", claims: 1572, approvalRate: 81.3, savings: 98000, region: "Midwest" },
+                    { name: "Specialty Surgical", claims: 2128, approvalRate: 65.8, savings: 187000, region: "West" },
+                    { name: "University Hospital", claims: 2521, approvalRate: 70.1, savings: 165000, region: "Northeast" },
+                    { name: "Memorial Hospital", claims: 1895, approvalRate: 76.2, savings: 123000, region: "South" },
+                    { name: "Children's Medical", claims: 1247, approvalRate: 83.4, savings: 87000, region: "Midwest" },
+                    { name: "General Medical", claims: 2756, approvalRate: 71.5, savings: 156000, region: "West" }
+                ];
+                
+                // Set up scales
+                const xScale = d3.scaleLinear()
+                    .domain([60, 90])
+                    .range([padding, width - padding]);
+                
+                const yScale = d3.scaleLinear()
+                    .domain([0, 4000])
+                    .range([height - padding, padding]);
+                
+                const radiusScale = d3.scaleSqrt()
+                    .domain([0, 250000])
+                    .range([5, 30]);
+                
+                const colorScale = d3.scaleOrdinal()
+                    .domain(["Northeast", "South", "Midwest", "West"])
+                    .range(["#3498db", "#2ecc71", "#f39c12", "#9b59b6"]);
+                
+                // Draw bubbles
+                const bubbles = svg.selectAll(".hospital-bubble")
+                    .data(hospitals)
+                    .enter().append("circle")
+                    .attr("class", "hospital-bubble")
+                    .attr("cx", d => xScale(d.approvalRate))
+                    .attr("cy", d => yScale(d.claims))
+                    .attr("r", d => radiusScale(d.savings))
+                    .attr("fill", d => colorScale(d.region))
+                    .on("mouseover", function(event, d) {
+                        // Highlight bubble on hover
+                        d3.select(this)
+                            .transition()
+                            .duration(300)
+                            .attr("stroke", "#2c3e50")
+                            .attr("stroke-width", 2);
+                        
+                        // Show tooltip
+                        const tooltip = svg.append("g")
+                            .attr("class", "tooltip")
+                            .attr("transform", `translate(${xScale(d.approvalRate)},${yScale(d.claims) - radiusScale(d.savings) - 10})`);
+                        
+                        tooltip.append("rect")
+                            .attr("width", 160)
+                            .attr("height", 60)
+                            .attr("x", -80)
+                            .attr("y", -30)
+                            .attr("fill", "white")
+                            .attr("stroke", "#ccc")
+                            .attr("rx", 5);
+                        
+                        tooltip.append("text")
+                            .attr("text-anchor", "middle")
+                            .attr("dy", -15)
+                            .text(d.name);
+                        
+                        tooltip.append("text")
+                            .attr("text-anchor", "middle")
+                            .attr("dy", 5)
+                            .text(`Claims: ${d.claims}`);
+                        
+                        tooltip.append("text")
+                            .attr("text-anchor", "middle")
+                            .attr("dy", 25)
+                            .text(`Approval: ${d.approvalRate}%`);
+                    })
+                    .on("mouseout", function() {
+                        // Remove highlight
+                        d3.select(this)
+                            .transition()
+                            .duration(300)
+                            .attr("stroke", null);
+                        
+                        // Remove tooltip
+                        svg.selectAll(".tooltip").remove();
+                    });
+                
+                // Add axes
+                const xAxis = d3.axisBottom(xScale);
+                const yAxis = d3.axisLeft(yScale);
+                
+                svg.append("g")
+                    .attr("transform", `translate(0, ${height - padding})`)
+                    .call(xAxis)
+                    .append("text")
+                    .attr("x", width / 2)
+                    .attr("y", 35)
+                    .attr("fill", "black")
+                    .attr("text-anchor", "middle")
+                    .text("Approval Rate (%)");
+                
+                svg.append("g")
+                    .attr("transform", `translate(${padding}, 0)`)
+                    .call(yAxis)
+                    .append("text")
+                    .attr("transform", "rotate(-90)")
+                    .attr("y", -30)
+                    .attr("x", -height / 2)
+                    .attr("fill", "black")
+                    .attr("text-anchor", "middle")
+                    .text("Number of Claims");
+                
+                // Add legend
+                const legend = svg.append("g")
+                    .attr("transform", `translate(${width - 150}, ${padding})`);
+                
+                const regions = ["Northeast", "South", "Midwest", "West"];
+                
+                regions.forEach((region, i) => {
+                    const legendRow = legend.append("g")
+                        .attr("transform", `translate(0, ${i * 25})`);
+                    
+                    legendRow.append("circle")
+                        .attr("r", 6)
+                        .attr("fill", colorScale(region));
+                    
+                    legendRow.append("text")
+                        .attr("x", 15)
+                        .attr("y", 4)
+                        .text(region)
+                        .style("font-size", "12px");
+                });
+            }
+            
+            // Savings Chart
+            const savingsCtx = document.getElementById('savingsChart').getContext('2d');
+            new Chart(savingsCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                    datasets: [{
+                        label: 'Identified Savings',
+                        data: [420000, 580000, 510000, 670000, 720000, 890000],
+                        backgroundColor: '#2ecc71',
+                        borderWidth: 1
+                    }, {
+                        label: 'Realized Savings',
+                        data: [380000, 520000, 470000, 610000, 680000, 820000],
+                        backgroundColor: '#3498db',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return '$' + (value / 1000).toFixed(0) + 'K';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Flag Type Chart
+            const flagTypeCtx = document.getElementById('flagTypeChart').getContext('2d');
+            new Chart(flagTypeCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Documentation', 'Medical Necessity', 'Pricing', 'Eligibility', 'Duplicate', 'Out-of-Network'],
+                    datasets: [{
+                        label: 'Flag Count',
+                        data: [420, 380, 310, 290, 240, 190],
+                        backgroundColor: '#3498db',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true
+                }
+            });
+
+            // Create visualizations
+            createSankeyDiagram();
+            createTreemap();
+            createBubbleChart();
+
+            // Rule details data
+            const ruleDetails = {
+                opdUtilization: {
+                    title: "Frequent OPD Utilization in 12 months",
+                    description: "This rule flags claims where a patient has an unusually high number of outpatient department visits within a 12-month period.",
+                    logic: "If patient OPD visits > 12 in 12 months, flag for review",
+                    parameters: "Threshold: 12 visits, Lookback period: 12 months",
+                    metrics: {
+                        triggers: 1248,
+                        successRate: 92.3,
+                        falsePositives: 96,
+                        savings: 184500
+                    },
+                    analysis: {
+                        trend: "Increasing 5% month-over-month",
+                        commonProviders: "Community clinics (42%), Specialty centers (28%)",
+                        commonDiagnoses: "Hypertension (18%), Diabetes (15%), Respiratory infections (12%)"
+                    }
+                },
+                opdPrimary: {
+                    title: "Frequent OPD Utilization primary in 12 months",
+                    description: "Flags claims where a patient has excessive OPD visits primarily to a single provider or facility within 12 months.",
+                    logic: "If patient OPD visits to single provider > 8 in 12 months, flag for review",
+                    parameters: "Threshold: 8 visits to same provider, Lookback period: 12 months",
+                    metrics: {
+                        triggers: 947,
+                        successRate: 87.1,
+                        falsePositives: 122,
+                        savings: 142300
+                    },
+                    analysis: {
+                        trend: "Stable (0.5% change month-over-month)",
+                        commonProviders: "Primary care practices (65%), Urgent care centers (22%)",
+                        commonDiagnoses: "Chronic conditions (58%), Preventive care (27%)"
+                    }
+                },
+                ipdUtilization: {
+                    title: "Frequent IPD Utilization in 12 months",
+                    description: "Identifies patients with excessive inpatient department admissions within a 12-month period.",
+                    logic: "If patient IPD admissions > 4 in 12 months, flag for review",
+                    parameters: "Threshold: 4 admissions, Lookback period: 12 months",
+                    metrics: {
+                        triggers: 842,
+                        successRate: 96.5,
+                        falsePositives: 29,
+                        savings: 325600
+                    },
+                    analysis: {
+                        trend: "Decreasing 3% month-over-month",
+                        commonProviders: "Large hospitals (78%), Teaching hospitals (15%)",
+                        commonDiagnoses: "Cardiac conditions (24%), Surgical complications (18%), Respiratory conditions (15%)"
+                    }
+                },
+                roomBoard: {
+                    title: "Room and board fee",
+                    description: "Validates room and board charges against expected rates for the room type and hospital class.",
+                    logic: "If room charges exceed expected rate by > 15%, flag for review",
+                    parameters: "Allowed variance: 15%, Hospital class-specific rates",
+                    metrics: {
+                        triggers: 3472,
+                        successRate: 78.2,
+                        falsePositives: 756,
+                        savings: 423800
+                    },
+                    analysis: {
+                        trend: "Increasing 8% month-over-month",
+                        commonProviders: "Urban hospitals (64%), Specialty hospitals (23%)",
+                        commonIssues: "Private room upcharges (42%), ICU rate miscalculations (31%)"
+                    }
+                },
+                totalClaim: {
+                    title: "Total claim amount",
+                    description: "Checks if the total claim amount exceeds expected values based on procedure codes and patient history.",
+                    logic: "If total claim amount > 2 standard deviations from mean for similar claims, flag for review",
+                    parameters: "Statistical threshold: 2 SD, Specialty-specific benchmarks",
+                    metrics: {
+                        triggers: 5128,
+                        successRate: 83.7,
+                        falsePositives: 835,
+                        savings: 638200
+                    },
+                    analysis: {
+                        trend: "Stable (1% change month-over-month)",
+                        commonProviders: "Surgical centers (38%), Large hospitals (34%)",
+                        commonIssues: "Unbundling (27%), Incorrect quantity (22%), Incorrect coding (19%)"
+                    }
+                },
+                lengthStay: {
+                    title: "Length of Stay",
+                    description: "Validates that the length of stay is appropriate for the diagnosis and procedures performed.",
+                    logic: "If length of stay > DRG-specific benchmark by > 2 days, flag for review",
+                    parameters: "DRG-specific benchmarks, Allowed variance: 2 days",
+                    metrics: {
+                        triggers: 2156,
+                        successRate: 91.2,
+                        falsePositives: 189,
+                        savings: 387400
+                    },
+                    analysis: {
+                        trend: "Decreasing 2% month-over-month",
+                        commonProviders: "Large hospitals (72%), Rehabilitation facilities (18%)",
+                        commonDiagnoses: "Joint replacement (24%), Cardiac procedures (19%), Pneumonia (14%)"
+                    }
+                },
+                doctorFee: {
+                    title: "Doctor attendance fee",
+                    description: "Validates physician fees against fee schedules and usual and customary rates.",
+                    logic: "If doctor fee > 120% of fee schedule rate, flag for review",
+                    parameters: "Allowed variance: 20%, Specialty-specific fee schedules",
+                    metrics: {
+                        triggers: 4327,
+                        successRate: 85.4,
+                        falsePositives: 632,
+                        savings: 512500
+                    },
+                    analysis: {
+                        trend: "Increasing 4% month-over-month",
+                        commonProviders: "Surgical specialists (38%), Medical specialists (32%)",
+                        commonIssues: "Non-participating providers (41%), Incorrect modifier usage (27%)"
+                    }
+                },
+                surgeryFee: {
+                    title: "Surgery fee",
+                    description: "Validates surgery charges against expected ranges for the specific procedure and complexity.",
+                    logic: "If surgery fee > 125% of expected range, flag for review",
+                    parameters: "Allowed variance: 25%, Procedure-specific benchmarks",
+                    metrics: {
+                        triggers: 2874,
+                        successRate: 89.6,
+                        falsePositives: 298,
+                        savings: 674300
+                    },
+                    analysis: {
+                        trend: "Stable (0.8% change month-over-month)",
+                        commonProviders: "Surgical centers (52%), Hospital ORs (41%)",
+                        commonIssues: "Assistant surgeon billing (33%), Complex procedure misclassification (28%)"
+                    }
+                },
+                implantFee: {
+                    title: "Implant fee",
+                    description: "Validates implant charges against acquisition cost and usual markup percentages.",
+                    logic: "If implant fee > acquisition cost + 40% markup, flag for review",
+                    parameters: "Allowed markup: 40%, Implant-specific acquisition costs",
+                    metrics: {
+                        triggers: 1543,
+                        successRate: 93.1,
+                        falsePositives: 107,
+                        savings: 428600
+                    },
+                    analysis: {
+                        trend: "Increasing 6% month-over-month",
+                        commonProviders: "Orthopedic centers (47%), Cardiac centers (36%)",
+                        commonIssues: "Brand name preference (52%), Incorrect cost basis (31%)"
+                    }
+                }
+            };
+
+            // Performance metric details
+            const metricDetails = {
+                accuracy: {
+                    title: "Accuracy Rate",
+                    description: "Measures how often the engine's decisions align with human assessors' decisions.",
+                    calculation: "((True Positives + True Negatives) / Total Claims) × 100",
+                    value: "94.7%",
+                    trend: "Improving (2.3% increase over last quarter)",
+                    breakdown: {
+                        "True Positives": "8,421 claims",
+                        "True Negatives": "3,412 claims",
+                        "False Positives": "512 claims",
+                        "False Negatives": "142 claims"
+                    },
+                    implications: "High accuracy reduces manual review workload and increases trust in automated decisions."
+                },
+                efficiency: {
+                    title: "Efficiency Gain",
+                    description: "Measures the reduction in processing time achieved by using the rule engine.",
+                    calculation: "((Manual Processing Time - Engine Processing Time) / Manual Processing Time) × 100",
+                    value: "72.4%",
+                    trend: "Stable (0.5% change over last quarter)",
+                    breakdown: {
+                        "Manual Processing Time": "8.7 minutes/claim",
+                        "Engine Processing Time": "2.4 minutes/claim",
+                        "Time Saved": "6.3 minutes/claim"
+                    },
+                    implications: "Significant time savings allow staff to focus on complex cases and value-added activities."
+                },
+                falsePositive: {
+                    title: "False Positive Rate",
+                    description: "Measures how often the engine incorrectly flags claims that should be approved.",
+                    calculation: "(False Positives / Total Flagged Claims) × 100",
+                    value: "8.8%",
+                    trend: "Improving (1.2% decrease over last quarter)",
+                    breakdown: {
+                        "False Positives": "512 claims",
+                        "True Positives": "5,312 claims",
+                        "Total Flagged": "5,824 claims"
+                    },
+                    implications: "Reducing false positives minimizes unnecessary reviews and improves provider satisfaction."
+                },
+                savingsRate: {
+                    title: "Savings Rate",
+                    description: "Measures the percentage of identified savings that are actually realized after review.",
+                    calculation: "(Realized Savings / Identified Savings) × 100",
+                    value: "67.6%",
+                    trend: "Improving (3.1% increase over last quarter)",
+                    breakdown: {
+                        "Identified Savings": "$2.84M",
+                        "Realized Savings": "$1.92M",
+                        "Difference": "$0.92M"
+                    },
+                    implications: "Improving this rate indicates better targeting of high-value opportunities and more effective review processes."
+                }
+            };
+
+            // Handle rule modal display
+            const ruleModal = document.getElementById('ruleModal');
+            ruleModal.addEventListener('show.bs.modal', function(event) {
+                const button = event.relatedTarget;
+                const ruleId = button.getAttribute('data-rule');
+                const rule = ruleDetails[ruleId];
+                
+                const modalTitle = ruleModal.querySelector('.modal-title');
+                const modalBody = ruleModal.querySelector('#ruleDetailContent');
+                
+                modalTitle.textContent = rule.title;
+                
+                modalBody.innerHTML = `
+                    <div class="rule-detail">
+                        <h5>Description</h5>
+                        <p>${rule.description}</p>
+                        
+                        <h5>Rule Logic</h5>
+                        <p>${rule.logic}</p>
+                        
+                        <h5>Parameters</h5>
+                        <p>${rule.parameters}</p>
+                        
+                        <h5>Performance Metrics</h5>
+                        <div class="rule-metrics">
+                            <div class="metric-card">
+                                <div class="metric-value">${rule.metrics.triggers.toLocaleString()}</div>
+                                <div class="metric-label">Triggers</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">${rule.metrics.successRate}%</div>
+                                <div class="metric-label">Success Rate</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">${rule.metrics.falsePositives}</div>
+                                <div class="metric-label">False Positives</div>
+                            </div>
+                            <div class="metric-card">
+                                <div class="metric-value">$${rule.metrics.savings.toLocaleString()}</div>
+                                <div class="metric-label">Savings</div>
+                            </div>
+                        </div>
+                        
+                        <h5>Analysis Insights</h5>
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h6>Trend</h6>
+                                <p>${rule.analysis.trend}</p>
+                                
+                                <h6>Common Providers</h6>
+                                <p>${rule.analysis.commonProviders}</p>
+                                
+                                <h6>Common ${rule.analysis.commonDiagnoses ? 'Diagnoses' : 'Issues'}</h6>
+                                <p>${rule.analysis.commonDiagnoses || rule.analysis.commonIssues}</p>
+                            </div>
+                        </div>
+                        
+                        <h5>Performance Trend</h5>
+                        <div class="rule-chart">
+                            <canvas id="ruleTrendChart"></canvas>
+                        </div>
+                    </div>
+                `;
+                
+                // Add trend chart for the rule
+                setTimeout(() => {
+                    const trendCtx = document.getElementById('ruleTrendChart').getContext('2d');
+                    new Chart(trendCtx, {
+                        type: 'line',
+                        data: {
+                            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                            datasets: [{
+                                label: 'Triggers',
+                                data: Array.from({length: 6}, () => Math.floor(Math.random() * 200) + 100),
+                                borderColor: '#3498db',
+                                tension: 0.3,
+                                fill: false
+                            }, {
+                                label: 'Success Rate %',
+                                data: Array.from({length: 6}, () => Math.floor(Math.random() * 15) + 80),
+                                borderColor: '#2ecc71',
+                                tension: 0.3,
+                                fill: false,
+                                yAxisID: 'y1'
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: true,
+                                    title: {
+                                        display: true,
+                                        text: 'Number of Triggers'
+                                    }
+                                },
+                                y1: {
+                                    position: 'right',
+                                    beginAtZero: true,
+                                    max: 100,
+                                    title: {
+                                        display: true,
+                                        text: 'Success Rate (%)'
+                                    },
+                                    grid: {
+                                        drawOnChartArea: false
+                                    }
+                                }
+                            }
+                        }
+                    });
+                }, 100);
+            });
+
+            // Handle performance metric modal display
+            const metricModal = document.getElementById('metricModal');
+            metricModal.addEventListener('show.bs.modal', function(event) {
+                const card = event.relatedTarget;
+                const metricId = card.getAttribute('data-metric');
+                const metric = metricDetails[metricId];
+                
+                const modalTitle = metricModal.querySelector('.modal-title');
+                const modalBody = metricModal.querySelector('#metricDetailContent');
+                
+                modalTitle.textContent = metric.title;
+                
+                // Create breakdown list items
+                const breakdownItems = Object.entries(metric.breakdown)
+                    .map(([key, value]) => `<li><strong>${key}:</strong> ${value}</li>`)
+                    .join('');
+                
+                modalBody.innerHTML = `
+                    <div class="metric-detail">
+                        <h5>Description</h5>
+                        <p>${metric.description}</p>
+                        
+                        <h5>Calculation</h5>
+                        <p>${metric.calculation}</p>
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <h5>Current Value</h5>
+                                <div class="display-4 text-primary">${metric.value}</div>
+                            </div>
+                            <div class="col-md-6">
+                                <h5>Trend</h5>
+                                <p>${metric.trend}</p>
+                            </div>
+                        </div>
+                        
+                        <h5>Breakdown</h5>
+                        <ul>
+                            ${breakdownItems}
+                        </ul>
+                        
+                        <h5>Business Implications</h5>
+                        <p>${metric.implications}</p>
+                        
+                        <h5>Historical Trend</h5>
+                        <div class="chart-container">
+                            <canvas id="metricTrendChart"></canvas>
+                        </div>
+                    </div>
+                `;
+                
+                // Add trend chart for the metric
+                setTimeout(() => {
+                    const trendCtx = document.getElementById('metricTrendChart').getContext('2d');
+                    
+                    // Generate trend data based on metric type
+                    let dataPoints;
+                    if (metricId === 'accuracy') {
+                        dataPoints = [89, 90, 91, 92, 93, 94.7];
+                    } else if (metricId === 'efficiency') {
+                        dataPoints = [68, 69, 70, 70.5, 71.5, 72.4];
+                    } else if (metricId === 'falsePositive') {
+                        dataPoints = [12.5, 11.8, 10.5, 9.8, 9.2, 8.8];
+                    } else {
+                        dataPoints = [60, 62, 63.5, 64.8, 66.2, 67.6];
+                    }
+                    
+                    new Chart(trendCtx, {
+                        type: 'line',
+                        data: {
+                            labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun'],
+                            datasets: [{
+                                label: metric.title,
+                                data: dataPoints,
+                                borderColor: '#3498db',
+                                backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                                tension: 0.3,
+                                fill: true
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            scales: {
+                                y: {
+                                    beginAtZero: metricId !== 'accuracy',
+                                    min: metricId === 'accuracy' ? 85 : undefined,
+                                    max: metricId === 'falsePositive' ? 15 : 100
+                                }
+                            }
+                        }
+                    });
+                }, 100);
+            });
+
+            // Handle window resize to redraw D3 visualizations
+            let resizeTimer;
+            window.addEventListener('resize', function() {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(function() {
+                    createSankeyDiagram();
+                    createTreemap();
+                    createBubbleChart();
+                }, 250);
+            });
+        });
+    </script>
+</body>
+</html>
